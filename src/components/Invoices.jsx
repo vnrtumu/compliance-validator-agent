@@ -1,15 +1,29 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { getInvoices } from '../services/uploadService';
 import './Invoices.css';
 
-const invoiceData = [
-    { id: 'INV-2024-001', vendor: 'TechNova Solutions', date: '2024-01-12', amount: '₹14,500', gstin: '27AAACT1234A1Z5', status: 'Validated', score: 58 },
-    { id: 'INV-2024-002', vendor: 'Global Logistics', date: '2024-01-11', amount: '₹8,400', gstin: '07BBBCS5678B2Z2', status: 'Flagged', score: 42 },
-    { id: 'INV-2024-003', vendor: 'Office Supplies Inc', date: '2024-01-10', amount: '₹2,100', gstin: '19CCCCR9012C3Z9', status: 'Validated', score: 56 },
-    { id: 'INV-2024-004', vendor: 'Swift Repairs', date: '2024-01-09', amount: '₹5,600', gstin: '33DDDDM3456D4Z8', status: 'Pending', score: 0 },
-    { id: 'INV-2024-005', vendor: 'Cyber Security Svc', date: '2024-01-08', amount: '₹22,000', gstin: '27AAACT1234A1Z5', status: 'Flagged', score: 38 },
-];
-
 const Invoices = () => {
+    const [invoices, setInvoices] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        fetchInvoices();
+    }, []);
+
+    const fetchInvoices = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const data = await getInvoices();
+            setInvoices(data);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return (
         <div className="invoices-screen fade-in">
             <header className="screen-header">
@@ -18,54 +32,70 @@ const Invoices = () => {
                     <p className="subtitle">Detailed breakdown of 58-point compliance checks.</p>
                 </div>
                 <div className="header-actions">
-                    <button className="secondary-btn">Filter</button>
+                    <button className="secondary-btn" onClick={fetchInvoices}>Refresh</button>
                     <button className="primary-btn">Export Results</button>
                 </div>
             </header>
 
             <div className="glass-card table-container">
-                <table className="invoices-table">
-                    <thead>
-                        <tr>
-                            <th>Invoice ID</th>
-                            <th>Vendor</th>
-                            <th>Date</th>
-                            <th>GSTIN</th>
-                            <th>Amount</th>
-                            <th>Status</th>
-                            <th>Compliance</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {invoiceData.map((inv) => (
-                            <tr key={inv.id}>
-                                <td className="inv-id">{inv.id}</td>
-                                <td>{inv.vendor}</td>
-                                <td>{inv.date}</td>
-                                <td className="gstin-code">{inv.gstin}</td>
-                                <td>{inv.amount}</td>
-                                <td>
-                                    <span className={`status-tag ${inv.status.toLowerCase()}`}>
-                                        {inv.status}
-                                    </span>
-                                </td>
-                                <td>
-                                    <div className="compliance-bar-wrapper">
-                                        <div
-                                            className="compliance-bar"
-                                            style={{ width: `${(inv.score / 58) * 100}%`, backgroundColor: inv.score > 50 ? 'var(--accent-success)' : inv.score > 0 ? 'var(--accent-warning)' : 'var(--text-muted)' }}
-                                        ></div>
-                                        <span className="score-text">{inv.score}/58</span>
-                                    </div>
-                                </td>
-                                <td>
-                                    <button className="view-btn">View Report</button>
-                                </td>
+                {isLoading ? (
+                    <div style={{ padding: '2rem', textAlign: 'center' }}>Loading invoices...</div>
+                ) : error ? (
+                    <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--accent-error)' }}>
+                        Error: {error}
+                    </div>
+                ) : (
+                    <table className="invoices-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Filename</th>
+                                <th>Upload Date</th>
+                                <th>Type</th>
+                                <th>Size</th>
+                                <th>Status</th>
+                                <th>Compliance</th>
+                                <th>Action</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {invoices.length === 0 ? (
+                                <tr>
+                                    <td colSpan="8" style={{ textAlign: 'center', padding: '2rem' }}>
+                                        No invoices found. Upload some on the dashboard!
+                                    </td>
+                                </tr>
+                            ) : (
+                                invoices.map((inv) => (
+                                    <tr key={inv.id}>
+                                        <td className="inv-id">#{inv.id}</td>
+                                        <td>{inv.filename}</td>
+                                        <td>{new Date(inv.created_at).toLocaleDateString()}</td>
+                                        <td className="gstin-code">{inv.content_type}</td>
+                                        <td>{Math.round(inv.size / 1024)} KB</td>
+                                        <td>
+                                            <span className="status-tag validated">
+                                                Processed
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div className="compliance-bar-wrapper">
+                                                <div
+                                                    className="compliance-bar"
+                                                    style={{ width: '80%', backgroundColor: 'var(--accent-success)' }}
+                                                ></div>
+                                                <span className="score-text">46/58</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <button className="view-btn">View Report</button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                )}
             </div>
         </div>
     );
