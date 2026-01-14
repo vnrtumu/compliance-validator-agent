@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import Sidebar from './components/Sidebar';
+import React from 'react';
+import { createBrowserRouter } from 'react-router-dom';
+import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import AgentCenter from './components/AgentCenter';
 import Invoices from './components/Invoices';
@@ -7,21 +8,33 @@ import ComplianceReports from './components/ComplianceReports';
 import Settings from './components/Settings';
 import './App.css';
 
-function App() {
-  const [activeItem, setActiveItem] = useState('dashboard');
+const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <Layout />,
+    children: [
+      {
+        index: true,
+        element: <Dashboard />,
+      },
+      {
+        path: 'invoices',
+        element: <Invoices />,
+      },
+      {
+        path: 'agents',
+        element: <AgentCenter />,
+      },
+      {
+        path: 'reports',
+        element: <ComplianceReports />,
+      },
+      {
+        path: 'settings',
+        element: <Settings />,
+      },
+    ],
+  },
+]);
 
-  return (
-    <>
-      <Sidebar activeItem={activeItem} setActiveItem={setActiveItem} />
-      <main className="main-content">
-        {activeItem === 'dashboard' && <Dashboard />}
-        {activeItem === 'invoices' && <Invoices />}
-        {activeItem === 'agents' && <AgentCenter />}
-        {activeItem === 'reports' && <ComplianceReports />}
-        {activeItem === 'settings' && <Settings />}
-      </main>
-    </>
-  );
-}
-
-export default App;
+export default router;

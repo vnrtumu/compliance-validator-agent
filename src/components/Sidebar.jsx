@@ -1,14 +1,15 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { NavLink } from 'react-router-dom';
 import './Sidebar.css';
 
-const Sidebar = ({ activeItem, setActiveItem }) => {
+const Sidebar = () => {
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-    { id: 'invoices', label: 'Invoices', icon: '📄' },
-    { id: 'agents', label: 'Agent Center', icon: '🤖' },
-    { id: 'reports', label: 'Compliance Reports', icon: '📝' },
-    { id: 'settings', label: 'Settings', icon: '⚙️' },
+    { id: 'dashboard', label: 'Dashboard', icon: '📊', path: '/' },
+    { id: 'invoices', label: 'Invoices', icon: '📄', path: '/invoices' },
+    { id: 'agents', label: 'Agent Center', icon: '🤖', path: '/agents' },
+    { id: 'reports', label: 'Compliance Reports', icon: '📝', path: '/reports' },
+    { id: 'settings', label: 'Settings', icon: '⚙️', path: '/settings' },
   ];
 
   return (
@@ -20,14 +21,14 @@ const Sidebar = ({ activeItem, setActiveItem }) => {
 
       <nav className="sidebar-nav">
         {menuItems.map((item) => (
-          <button
+          <NavLink
             key={item.id}
-            className={`nav-item ${activeItem === item.id ? 'active' : ''}`}
-            onClick={() => setActiveItem(item.id)}
+            to={item.path}
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
           >
             <span className="nav-icon">{item.icon}</span>
             <span className="nav-label">{item.label}</span>
-          </button>
+          </NavLink>
         ))}
       </nav>
 
