@@ -47,6 +47,34 @@ const ExtractionStreamPanel = ({ uploadResults, onComplete, onViewDetails }) => 
             return;
         }
 
+        // Check if this was a JSON import (no streaming needed)
+        if (file.status === 'json_imported') {
+            setCurrentFile(file);
+            setCurrentIndex(index);
+            setMessages([
+                { step: 'complete', message: '📦 JSON data imported directly (no AI extraction needed)' },
+                { step: 'complete', message: `✅ ${file.imported_count || 1} invoice(s) imported successfully!` }
+            ]);
+
+            // Mark as imported in results
+            setResults((prev) => ({
+                ...prev,
+                [file.id]: {
+                    decision: 'ACCEPT',
+                    document_type: 'json_import',
+                    confidence_score: 1.0,
+                    is_json_import: true,
+                    imported_count: file.imported_count || 1
+                }
+            }));
+
+            // Move to next file
+            setTimeout(() => {
+                processNextFile(index + 1);
+            }, 1500);
+            return;
+        }
+
         setIsProcessing(true);
         setCurrentFile(file);
         setCurrentIndex(index);
