@@ -1,5 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { uploadFiles } from '../services/uploadService';
+import ExtractionStreamPanel from './ExtractionStreamPanel';
+import ExtractionModal from './ExtractionModal';
 import './Dashboard.css';
 
 const Dashboard = () => {
@@ -7,6 +9,8 @@ const Dashboard = () => {
     const [selectedFiles, setSelectedFiles] = useState([]);
     const [isUploading, setIsUploading] = useState(false);
     const [uploadResults, setUploadResults] = useState(null);
+    const [showStreamPanel, setShowStreamPanel] = useState(false);
+    const [selectedForDetails, setSelectedForDetails] = useState(null);
 
     const handleAction = (action) => {
         alert(`${action} triggered! The agent is now preparing the requested data.`);
@@ -21,6 +25,7 @@ const Dashboard = () => {
         if (files.length > 0) {
             setSelectedFiles(files);
             setUploadResults(null);
+            setShowStreamPanel(false);
             console.log('Selected files:', files.map(f => f.name));
         }
     };
@@ -30,17 +35,30 @@ const Dashboard = () => {
 
         setIsUploading(true);
         setUploadResults(null);
+        setShowStreamPanel(false);
 
         try {
             const results = await uploadFiles(selectedFiles);
             setUploadResults(results);
-            setSelectedFiles([]); // Clear selection on successful upload
-            alert('Upload completed successfully!');
+            setSelectedFiles([]); // Clear selection
+            setShowStreamPanel(true); // Show streaming panel
         } catch (error) {
             alert(`Upload failed: ${error.message}`);
         } finally {
             setIsUploading(false);
         }
+    };
+
+    const handleStreamComplete = (results) => {
+        console.log('Extraction complete:', results);
+    };
+
+    const handleViewDetails = (file, result) => {
+        setSelectedForDetails({ ...file, extraction_result: result });
+    };
+
+    const handleCloseModal = () => {
+        setSelectedForDetails(null);
     };
 
     return (
@@ -103,27 +121,32 @@ const Dashboard = () => {
                         </button>
                         {selectedFiles.length > 0 && (
                             <button className="primary-btn" onClick={handleUpload} disabled={isUploading}>
-                                {isUploading ? 'Uploading...' : 'Run GST/TDS Check'}
+                                {isUploading ? 'Uploading...' : '🚀 Upload & Analyze'}
                             </button>
                         )}
                     </div>
-
-                    {uploadResults && (
-                        <div className="upload-results" style={{ marginTop: '20px', textAlign: 'left', width: '100%' }}>
-                            <h4>Recent Upload Results:</h4>
-                            <ul style={{ listStyle: 'none', padding: 0 }}>
-                                {uploadResults.map((result, index) => (
-                                    <li key={index} style={{ marginBottom: '5px' }}>
-                                        ✅ {result.filename} ({Math.round(result.size / 1024)} KB) - {result.status}
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
                 </div>
+
+                {/* Streaming Extraction Panel */}
+                {showStreamPanel && uploadResults && uploadResults.length > 0 && (
+                    <ExtractionStreamPanel
+                        uploadResults={uploadResults}
+                        onComplete={handleStreamComplete}
+                        onViewDetails={handleViewDetails}
+                    />
+                )}
             </div>
+
+            {/* Extraction Modal for viewing details */}
+            {selectedForDetails && (
+                <ExtractionModal
+                    upload={selectedForDetails}
+                    onClose={handleCloseModal}
+                />
+            )}
         </div>
     );
 };
 
 export default Dashboard;
+

@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { getInvoices } from '../services/uploadService';
+import ExtractionModal from './ExtractionModal';
 import './Invoices.css';
 
 const Invoices = () => {
     const [invoices, setInvoices] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [selectedInvoice, setSelectedInvoice] = useState(null);
 
     useEffect(() => {
         fetchInvoices();
@@ -24,12 +26,33 @@ const Invoices = () => {
         }
     };
 
+    const handleAnalyze = (invoice) => {
+        setSelectedInvoice(invoice);
+    };
+
+    const handleCloseModal = () => {
+        setSelectedInvoice(null);
+        // Refresh invoices to get updated extraction status
+        fetchInvoices();
+    };
+
+    const getStatusTag = (invoice) => {
+        if (invoice.extraction_status === 'completed') {
+            if (invoice.is_valid) {
+                return <span className="status-tag validated">✓ Valid</span>;
+            } else {
+                return <span className="status-tag rejected">✗ Invalid</span>;
+            }
+        }
+        return <span className="status-tag pending">Pending</span>;
+    };
+
     return (
         <div className="invoices-screen fade-in">
             <header className="screen-header">
                 <div>
                     <h1>Scanned Invoices</h1>
-                    <p className="subtitle">Detailed breakdown of 58-point compliance checks.</p>
+                    <p className="subtitle">Click "Analyze" to run AI extraction and compliance validation.</p>
                 </div>
                 <div className="header-actions">
                     <button className="secondary-btn" onClick={fetchInvoices}>Refresh</button>
@@ -54,14 +77,13 @@ const Invoices = () => {
                                 <th>Type</th>
                                 <th>Size</th>
                                 <th>Status</th>
-                                <th>Compliance</th>
                                 <th>Action</th>
                             </tr>
                         </thead>
                         <tbody>
                             {invoices.length === 0 ? (
                                 <tr>
-                                    <td colSpan="8" style={{ textAlign: 'center', padding: '2rem' }}>
+                                    <td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>
                                         No invoices found. Upload some on the dashboard!
                                     </td>
                                 </tr>
@@ -74,21 +96,15 @@ const Invoices = () => {
                                         <td className="gstin-code">{inv.content_type}</td>
                                         <td>{Math.round(inv.size / 1024)} KB</td>
                                         <td>
-                                            <span className="status-tag validated">
-                                                Processed
-                                            </span>
+                                            {getStatusTag(inv)}
                                         </td>
                                         <td>
-                                            <div className="compliance-bar-wrapper">
-                                                <div
-                                                    className="compliance-bar"
-                                                    style={{ width: '80%', backgroundColor: 'var(--accent-success)' }}
-                                                ></div>
-                                                <span className="score-text">46/58</span>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <button className="view-btn">View Report</button>
+                                            <button
+                                                className="analyze-btn"
+                                                onClick={() => handleAnalyze(inv)}
+                                            >
+                                                🔍 Analyze
+                                            </button>
                                         </td>
                                     </tr>
                                 ))
@@ -97,8 +113,17 @@ const Invoices = () => {
                     </table>
                 )}
             </div>
+
+            {/* Extraction Modal */}
+            {selectedInvoice && (
+                <ExtractionModal
+                    upload={selectedInvoice}
+                    onClose={handleCloseModal}
+                />
+            )}
         </div>
     );
 };
 
 export default Invoices;
+
