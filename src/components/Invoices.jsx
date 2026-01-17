@@ -196,6 +196,23 @@ const Invoices = () => {
         return classes.join(' ');
     };
 
+    // Check if invoice has a cached report
+    const hasReport = (invoice) => {
+        return invoice?.validation_result?.report != null;
+    };
+
+    // View cached report without running agents
+    const handleViewCachedReport = (invoice) => {
+        const cachedReport = invoice.validation_result?.report;
+        const cachedValidation = invoice.validation_result || {};
+
+        setReportResult(cachedReport);
+        setValidationResult(cachedValidation);
+        setResolverResult(invoice.validation_result?.resolution || null);
+        setShowAgentModal(true);
+        setAgentMessages([{ step: 'info', message: '📋 Showing cached report', agent: 'system' }]);
+    };
+
     return (
         <div className="invoices-screen fade-in">
             <header className="screen-header">
@@ -252,14 +269,23 @@ const Invoices = () => {
                                             >
                                                 🔍 Extract
                                             </button>
-                                            <button
-                                                className="validate-btn"
-                                                onClick={() => handleRunAgents(inv)}
-                                                disabled={processingId === inv.id || !inv.extraction_result}
-                                                title={!inv.extraction_result ? 'Run Extract first' : 'Run Validator + Resolver'}
-                                            >
-                                                {processingId === inv.id ? '⏳' : '🤖'} Run Agents
-                                            </button>
+                                            {hasReport(inv) ? (
+                                                <button
+                                                    className="view-report-btn"
+                                                    onClick={() => handleViewCachedReport(inv)}
+                                                >
+                                                    📊 View Report
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    className="validate-btn"
+                                                    onClick={() => handleRunAgents(inv)}
+                                                    disabled={processingId === inv.id || !inv.extraction_result}
+                                                    title={!inv.extraction_result ? 'Run Extract first' : 'Run all agents'}
+                                                >
+                                                    {processingId === inv.id ? '⏳' : '🤖'} Run Agents
+                                                </button>
+                                            )}
                                         </td>
                                     </tr>
                                 ))
