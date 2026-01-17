@@ -18,14 +18,17 @@ const Invoices = () => {
     const [validationResult, setValidationResult] = useState(null);
     const [resolverResult, setResolverResult] = useState(null);
     const [showAgentModal, setShowAgentModal] = useState(false);
-    const messagesEndRef = useRef(null);
+    const streamContainerRef = useRef(null);
 
     useEffect(() => {
         fetchInvoices();
     }, []);
 
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        // Scroll to bottom of stream container only, not the page
+        if (streamContainerRef.current) {
+            streamContainerRef.current.scrollTop = streamContainerRef.current.scrollHeight;
+        }
     }, [agentMessages]);
 
     const fetchInvoices = async () => {
@@ -257,7 +260,7 @@ const Invoices = () => {
                         </div>
                         <div className="modal-content">
                             {/* Agent Logs */}
-                            <div className="agent-stream">
+                            <div className="agent-stream" ref={streamContainerRef}>
                                 {agentMessages.map((msg, idx) => (
                                     <div key={idx} className={getMessageClass(msg)}>
                                         {msg.message}
@@ -269,7 +272,6 @@ const Invoices = () => {
                                         {currentAgent === 'validator' ? 'Validating...' : 'Resolving...'}
                                     </div>
                                 )}
-                                <div ref={messagesEndRef} />
                             </div>
 
                             {/* Results Summary */}
