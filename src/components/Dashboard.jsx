@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { uploadFiles } from '../services/uploadService';
 import ExtractionStreamPanel from './ExtractionStreamPanel';
 import ValidationStreamPanel from './ValidationStreamPanel';
+import ResolverStreamPanel from './ResolverStreamPanel';
 import ExtractionModal from './ExtractionModal';
 import './Dashboard.css';
 
@@ -18,7 +19,12 @@ const Dashboard = () => {
     const [extractionResults, setExtractionResults] = useState({});
     const [currentUploadId, setCurrentUploadId] = useState(null);
     const [validationResult, setValidationResult] = useState(null);
+    const [validationComplete, setValidationComplete] = useState(false);
     const [showValidationModal, setShowValidationModal] = useState(false);
+
+    // Resolver state
+    const [resolverResult, setResolverResult] = useState(null);
+    const [showResolverModal, setShowResolverModal] = useState(false);
 
     const handleAction = (action) => {
         alert(`${action} triggered! The agent is now preparing the requested data.`);
@@ -37,6 +43,8 @@ const Dashboard = () => {
             setExtractionComplete(false);
             setExtractionResults({});
             setValidationResult(null);
+            setValidationComplete(false);
+            setResolverResult(null);
             console.log('Selected files:', files.map(f => f.name));
         }
     };
@@ -84,10 +92,22 @@ const Dashboard = () => {
     const handleValidationComplete = (result) => {
         console.log('Validation complete:', result);
         setValidationResult(result);
+        setValidationComplete(true);
     };
 
     const handleViewValidationDetails = (result) => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         setShowValidationModal(true);
+    };
+
+    const handleResolverComplete = (result) => {
+        console.log('Resolver complete:', result);
+        setResolverResult(result);
+    };
+
+    const handleViewResolverDetails = (result) => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setShowResolverModal(true);
     };
 
     return (
@@ -174,6 +194,16 @@ const Dashboard = () => {
                         onViewDetails={handleViewValidationDetails}
                     />
                 )}
+
+                {/* Resolver Panel - Shows after validation is complete */}
+                {validationComplete && currentUploadId && (
+                    <ResolverStreamPanel
+                        uploadId={currentUploadId}
+                        validationResult={validationResult}
+                        onComplete={handleResolverComplete}
+                        onViewDetails={handleViewResolverDetails}
+                    />
+                )}
             </div>
 
             {/* Extraction Modal for viewing details */}
@@ -230,6 +260,66 @@ const Dashboard = () => {
                                             <li key={idx}>{a}</li>
                                         ))}
                                     </ul>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Resolver Result Modal */}
+            {showResolverModal && resolverResult && (
+                <div className="modal-overlay" onClick={() => setShowResolverModal(false)}>
+                    <div className="resolver-modal glass-card" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3>⚖️ Resolver Report</h3>
+                            <button className="close-btn" onClick={() => setShowResolverModal(false)}>×</button>
+                        </div>
+                        <div className="modal-content">
+                            <div className="resolver-summary">
+                                <div className={`status-badge large ${resolverResult.final_recommendation?.toLowerCase()}`}>
+                                    {resolverResult.final_recommendation}
+                                </div>
+                                <div className="score-display">
+                                    <span className="score">{Math.round((resolverResult.confidence_score || 0) * 100)}%</span>
+                                    <span className="label">Confidence Score</span>
+                                </div>
+                            </div>
+
+                            {resolverResult.reasoning && (
+                                <div className="reasoning-section">
+                                    <h4>🤖 AI Reasoning</h4>
+                                    <p>{resolverResult.reasoning}</p>
+                                </div>
+                            )}
+
+                            {resolverResult.conflict_resolutions?.length > 0 && (
+                                <div className="resolutions-section">
+                                    <h4>📋 Conflict Resolutions ({resolverResult.conflict_resolutions.length})</h4>
+                                    {resolverResult.conflict_resolutions.map((res, idx) => (
+                                        <div key={idx} className="resolution-item">
+                                            <div className="res-type">{res.conflict_type}</div>
+                                            <div className="res-detail">{res.resolution}</div>
+                                            <div className="res-basis">📚 {res.regulatory_basis}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {resolverResult.key_risks?.length > 0 && (
+                                <div className="risks-section">
+                                    <h4>⚠️ Key Risks</h4>
+                                    <ul>
+                                        {resolverResult.key_risks.map((risk, idx) => (
+                                            <li key={idx}>{risk}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+
+                            {resolverResult.requires_human_review && (
+                                <div className="human-review-alert">
+                                    👤 Human Review Required - Confidence below 70%
                                 </div>
                             )}
                         </div>
