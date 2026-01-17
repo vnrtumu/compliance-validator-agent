@@ -13,6 +13,7 @@ const ExtractionModal = ({ upload, onClose }) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [result, setResult] = useState(null);
+    const [showJson, setShowJson] = useState(false);
 
     useEffect(() => {
         if (upload) {
@@ -209,6 +210,36 @@ const ExtractionModal = ({ upload, onClose }) => {
                             <div className="extracted-fields">
                                 <h4>📋 Extracted Information</h4>
                                 {renderExtractedFields(result.extracted_fields)}
+                            </div>
+
+                            {/* JSON Toggle Section */}
+                            <div className="json-section">
+                                <button
+                                    className="json-toggle-btn"
+                                    onClick={() => setShowJson(!showJson)}
+                                >
+                                    {showJson ? '📋 Hide JSON' : '{ } View Raw JSON'}
+                                </button>
+
+                                {showJson && (
+                                    <div className="json-viewer">
+                                        <div className="json-header">
+                                            <span>Raw Extraction Result</span>
+                                            <button
+                                                className="copy-btn"
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText(JSON.stringify(result, null, 2));
+                                                    alert('JSON copied to clipboard!');
+                                                }}
+                                            >
+                                                📋 Copy
+                                            </button>
+                                        </div>
+                                        <pre className="json-content">
+                                            {JSON.stringify(result, null, 2)}
+                                        </pre>
+                                    </div>
+                                )}
                             </div>
                         </>
                     )}
