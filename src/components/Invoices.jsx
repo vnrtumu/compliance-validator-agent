@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { getInvoices } from '../services/uploadService';
 import { streamValidation } from '../services/validationService';
 import { streamResolution } from '../services/resolverService';
+import { streamReport } from '../services/reporterService';
 import ExtractionModal from './ExtractionModal';
 import './Invoices.css';
 
@@ -11,12 +12,13 @@ const Invoices = () => {
     const [error, setError] = useState(null);
     const [selectedInvoice, setSelectedInvoice] = useState(null);
 
-    // Combined Agent state (Validator + Resolver)
+    // Combined Agent state (Validator + Resolver + Reporter)
     const [processingId, setProcessingId] = useState(null);
     const [agentMessages, setAgentMessages] = useState([]);
-    const [currentAgent, setCurrentAgent] = useState(null); // 'validator' or 'resolver'
+    const [currentAgent, setCurrentAgent] = useState(null); // 'validator', 'resolver', or 'reporter'
     const [validationResult, setValidationResult] = useState(null);
     const [resolverResult, setResolverResult] = useState(null);
+    const [reportResult, setReportResult] = useState(null);
     const [showAgentModal, setShowAgentModal] = useState(false);
     const streamContainerRef = useRef(null);
 
@@ -64,6 +66,7 @@ const Invoices = () => {
         setCurrentAgent('validator');
         setValidationResult(null);
         setResolverResult(null);
+        setReportResult(null);
         setShowAgentModal(true);
 
         // Add header for Validator
@@ -106,10 +109,39 @@ const Invoices = () => {
             },
             (result) => {
                 setResolverResult(result);
+                setAgentMessages(prev => [...prev,
+                { step: 'complete', message: `✅ Resolution complete: ${result.final_recommendation} (${Math.round(result.confidence_score * 100)}% confidence)`, agent: 'resolver' },
+                { step: 'divider', message: '─'.repeat(40), agent: 'system' },
+                { step: 'header', message: '📊 REPORTER AGENT', agent: 'reporter' }
+                ]);
+
+                // Automatically start Reporter after Resolver
+                setCurrentAgent('reporter');
+                startReporter(invoiceId);
+            },
+            (error) => {
+                setAgentMessages(prev => [...prev, {
+                    step: 'error',
+                    message: `❌ Resolver Error: ${error.message}`,
+                    agent: 'resolver'
+                }]);
+                setProcessingId(null);
+            }
+        );
+    };
+
+    const startReporter = (invoiceId) => {
+        const reporterCleanup = streamReport(
+            invoiceId,
+            (data) => {
+                setAgentMessages(prev => [...prev, { ...data, agent: 'reporter' }]);
+            },
+            (result) => {
+                setReportResult(result);
                 setAgentMessages(prev => [...prev, {
                     step: 'complete',
-                    message: `✅ Resolution complete: ${result.final_recommendation} (${Math.round(result.confidence_score * 100)}% confidence)`,
-                    agent: 'resolver'
+                    message: `✅ Report generated: ${result.decision?.status} (Risk: ${result.risk_assessment?.level})`,
+                    agent: 'reporter'
                 }]);
                 setProcessingId(null);
                 setCurrentAgent(null);
@@ -117,8 +149,8 @@ const Invoices = () => {
             (error) => {
                 setAgentMessages(prev => [...prev, {
                     step: 'error',
-                    message: `❌ Resolver Error: ${error.message}`,
-                    agent: 'resolver'
+                    message: `❌ Reporter Error: ${error.message}`,
+                    agent: 'reporter'
                 }]);
                 setProcessingId(null);
             }
@@ -269,21 +301,26 @@ const Invoices = () => {
                                 {processingId && (
                                     <div className="agent-msg processing">
                                         <span className="spinner"></span>
-                                        {currentAgent === 'validator' ? 'Validating...' : 'Resolving...'}
+                                        {currentAgent === 'validator' ? 'Validating...' :
+                                            currentAgent === 'resolver' ? 'Resolving...' : 'Generating report...'}
                                     </div>
                                 )}
                             </div>
 
-                            {/* Results Summary */}
-                            {resolverResult && (
-                                <div className={`agent-summary ${getStatusClass(resolverResult.final_recommendation)}`}>
+                            {/* Results Summary - Show when report is ready */}
+                            {reportResult && (
+                                <div className={`agent-summary ${getStatusClass(reportResult.decision?.status)}`}>
                                     <div className="summary-header">
-                                        <span className={`status-badge ${getStatusClass(resolverResult.final_recommendation)}`}>
-                                            {resolverResult.final_recommendation}
+                                        <span className={`status-badge ${getStatusClass(reportResult.decision?.status)}`}>
+                                            {reportResult.decision?.status}
                                         </span>
-                                        <span className="confidence">
-                                            {Math.round(resolverResult.confidence_score * 100)}% Confidence
+                                        <span className="risk-badge">
+                                            Risk: {reportResult.risk_assessment?.level}
                                         </span>
+                                    </div>
+
+                                    <div className="exec-summary">
+                                        <p>{reportResult.executive_summary}</p>
                                     </div>
 
                                     {validationResult && (
@@ -297,33 +334,25 @@ const Invoices = () => {
                                         </div>
                                     )}
 
-                                    {resolverResult.conflict_resolutions?.length > 0 && (
-                                        <div className="resolution-summary">
-                                            <h5>Resolutions ({resolverResult.conflict_resolutions.length})</h5>
-                                            {resolverResult.conflict_resolutions.map((res, idx) => (
-                                                <div key={idx} className="resolution-item">
-                                                    <strong>{res.conflict_type}</strong>
-                                                    <p>{res.resolution}</p>
-                                                    <small>📚 {res.regulatory_basis}</small>
+                                    {reportResult.action_items?.length > 0 && (
+                                        <div className="actions-section">
+                                            <h5>🚨 Action Items ({reportResult.action_items.length})</h5>
+                                            {reportResult.action_items.slice(0, 3).map((action, idx) => (
+                                                <div key={idx} className={`action-item ${action.priority?.toLowerCase()}`}>
+                                                    <span className="priority">{action.priority}</span>
+                                                    <span className="action-text">{action.action}</span>
+                                                    <span className="owner">{action.owner} - {action.deadline}</span>
                                                 </div>
                                             ))}
+                                            {reportResult.action_items.length > 3 && (
+                                                <div className="more-actions">+{reportResult.action_items.length - 3} more</div>
+                                            )}
                                         </div>
                                     )}
 
-                                    {resolverResult.key_risks?.length > 0 && (
-                                        <div className="risks-section">
-                                            <h5>⚠️ Key Risks</h5>
-                                            <ul>
-                                                {resolverResult.key_risks.map((risk, idx) => (
-                                                    <li key={idx}>{risk}</li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    )}
-
-                                    {resolverResult.requires_human_review && (
+                                    {reportResult.approval_workflow?.escalation_needed && (
                                         <div className="human-review-alert">
-                                            👤 Human Review Required (Confidence below 70%)
+                                            ⚠️ Escalation Required: {reportResult.approval_workflow.required_level}
                                         </div>
                                     )}
 

@@ -3,6 +3,7 @@ import { uploadFiles } from '../services/uploadService';
 import ExtractionStreamPanel from './ExtractionStreamPanel';
 import ValidationStreamPanel from './ValidationStreamPanel';
 import ResolverStreamPanel from './ResolverStreamPanel';
+import ReporterStreamPanel from './ReporterStreamPanel';
 import ExtractionModal from './ExtractionModal';
 import './Dashboard.css';
 
@@ -24,7 +25,12 @@ const Dashboard = () => {
 
     // Resolver state
     const [resolverResult, setResolverResult] = useState(null);
+    const [resolverComplete, setResolverComplete] = useState(false);
     const [showResolverModal, setShowResolverModal] = useState(false);
+
+    // Reporter state
+    const [reportResult, setReportResult] = useState(null);
+    const [showReportModal, setShowReportModal] = useState(false);
 
     const handleAction = (action) => {
         alert(`${action} triggered! The agent is now preparing the requested data.`);
@@ -45,6 +51,8 @@ const Dashboard = () => {
             setValidationResult(null);
             setValidationComplete(false);
             setResolverResult(null);
+            setResolverComplete(false);
+            setReportResult(null);
             console.log('Selected files:', files.map(f => f.name));
         }
     };
@@ -103,11 +111,22 @@ const Dashboard = () => {
     const handleResolverComplete = (result) => {
         console.log('Resolver complete:', result);
         setResolverResult(result);
+        setResolverComplete(true);
     };
 
     const handleViewResolverDetails = (result) => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
         setShowResolverModal(true);
+    };
+
+    const handleReportComplete = (result) => {
+        console.log('Report complete:', result);
+        setReportResult(result);
+    };
+
+    const handleViewReportDetails = (result) => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setShowReportModal(true);
     };
 
     return (
@@ -202,6 +221,16 @@ const Dashboard = () => {
                         validationResult={validationResult}
                         onComplete={handleResolverComplete}
                         onViewDetails={handleViewResolverDetails}
+                    />
+                )}
+
+                {/* Reporter Panel - Shows after resolver is complete */}
+                {resolverComplete && currentUploadId && (
+                    <ReporterStreamPanel
+                        uploadId={currentUploadId}
+                        resolverResult={resolverResult}
+                        onComplete={handleReportComplete}
+                        onViewDetails={handleViewReportDetails}
                     />
                 )}
             </div>
@@ -320,6 +349,98 @@ const Dashboard = () => {
                             {resolverResult.requires_human_review && (
                                 <div className="human-review-alert">
                                     👤 Human Review Required - Confidence below 70%
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Report Modal */}
+            {showReportModal && reportResult && (
+                <div className="modal-overlay" onClick={() => setShowReportModal(false)}>
+                    <div className="report-modal glass-card" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3>📊 Compliance Report</h3>
+                            <button className="close-btn" onClick={() => setShowReportModal(false)}>×</button>
+                        </div>
+                        <div className="modal-content">
+                            {/* Summary Header */}
+                            <div className="report-summary-header">
+                                <div className={`status-badge large ${reportResult.decision?.status?.toLowerCase()}`}>
+                                    {reportResult.decision?.status}
+                                </div>
+                                <div className="risk-info">
+                                    <span className="risk-label">Risk Level:</span>
+                                    <span className={`risk-level ${reportResult.risk_assessment?.level?.toLowerCase()}`}>
+                                        {reportResult.risk_assessment?.level}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Executive Summary */}
+                            <div className="report-section">
+                                <h4>📋 Executive Summary</h4>
+                                <p>{reportResult.executive_summary}</p>
+                            </div>
+
+                            {/* Action Items */}
+                            {reportResult.action_items?.length > 0 && (
+                                <div className="report-section">
+                                    <h4>🚨 Action Items ({reportResult.action_items.length})</h4>
+                                    <div className="action-items-list">
+                                        {reportResult.action_items.map((action, idx) => (
+                                            <div key={idx} className={`action-row ${action.priority?.toLowerCase()}`}>
+                                                <span className="priority-badge">{action.priority}</span>
+                                                <div className="action-content">
+                                                    <div className="action-text">{action.action}</div>
+                                                    <div className="action-meta">
+                                                        <span>👤 {action.owner}</span>
+                                                        <span>⏱️ {action.deadline}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Key Findings */}
+                            {reportResult.key_findings?.length > 0 && (
+                                <div className="report-section">
+                                    <h4>🔍 Key Findings</h4>
+                                    {reportResult.key_findings.map((finding, idx) => (
+                                        <div key={idx} className="finding-item">
+                                            <span className="finding-category">{finding.category}</span>
+                                            <div className="finding-text">{finding.finding}</div>
+                                            <div className="finding-rec">→ {finding.recommendation}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Recommendations */}
+                            {reportResult.recommendations?.length > 0 && (
+                                <div className="report-section">
+                                    <h4>💡 Recommendations</h4>
+                                    <ul className="recommendations-list">
+                                        {reportResult.recommendations.map((rec, idx) => (
+                                            <li key={idx}>{rec}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+
+                            {/* Approval Workflow */}
+                            {reportResult.approval_workflow && (
+                                <div className="report-section workflow">
+                                    <h4>👤 Approval Workflow</h4>
+                                    <div className="workflow-info">
+                                        <span>Required: <strong>{reportResult.approval_workflow.required_level}</strong></span>
+                                        {reportResult.approval_workflow.escalation_needed && (
+                                            <span className="escalation-badge">⚠️ Escalation Needed</span>
+                                        )}
+                                    </div>
                                 </div>
                             )}
                         </div>
