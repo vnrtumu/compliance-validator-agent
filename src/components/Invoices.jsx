@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { getInvoices } from '../services/uploadService';
 import { streamValidation } from '../services/validationService';
+import { streamResolution } from '../services/resolverService';
 import ExtractionModal from './ExtractionModal';
 import './Invoices.css';
 
@@ -10,15 +11,22 @@ const Invoices = () => {
     const [error, setError] = useState(null);
     const [selectedInvoice, setSelectedInvoice] = useState(null);
 
-    // Validation state
-    const [validatingId, setValidatingId] = useState(null);
-    const [validationMessages, setValidationMessages] = useState([]);
+    // Combined Agent state (Validator + Resolver)
+    const [processingId, setProcessingId] = useState(null);
+    const [agentMessages, setAgentMessages] = useState([]);
+    const [currentAgent, setCurrentAgent] = useState(null); // 'validator' or 'resolver'
     const [validationResult, setValidationResult] = useState(null);
-    const [showValidationModal, setShowValidationModal] = useState(false);
+    const [resolverResult, setResolverResult] = useState(null);
+    const [showAgentModal, setShowAgentModal] = useState(false);
+    const messagesEndRef = useRef(null);
 
     useEffect(() => {
         fetchInvoices();
     }, []);
+
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [agentMessages]);
 
     const fetchInvoices = async () => {
         setIsLoading(true);
@@ -42,38 +50,79 @@ const Invoices = () => {
         fetchInvoices();
     };
 
-    const handleValidate = (invoice) => {
+    const handleRunAgents = (invoice) => {
         if (!invoice.extraction_result) {
-            alert('Please run extraction (Analyze) first before validation.');
+            alert('Please run extraction (Analyze) first.');
             return;
         }
 
-        setValidatingId(invoice.id);
-        setValidationMessages([]);
+        setProcessingId(invoice.id);
+        setAgentMessages([]);
+        setCurrentAgent('validator');
         setValidationResult(null);
-        setShowValidationModal(true);
+        setResolverResult(null);
+        setShowAgentModal(true);
 
-        const cleanup = streamValidation(
+        // Add header for Validator
+        setAgentMessages([{ step: 'header', message: '🛡️ VALIDATOR AGENT', agent: 'validator' }]);
+
+        // Start Validator streaming
+        const validatorCleanup = streamValidation(
             invoice.id,
             (data) => {
-                setValidationMessages(prev => [...prev, data]);
+                setAgentMessages(prev => [...prev, { ...data, agent: 'validator' }]);
             },
             (result) => {
                 setValidationResult(result);
-                setValidatingId(null);
+                setAgentMessages(prev => [...prev,
+                { step: 'complete', message: `✅ Validation complete: ${result.overall_status}`, agent: 'validator' },
+                { step: 'divider', message: '─'.repeat(40), agent: 'system' },
+                { step: 'header', message: '⚖️ RESOLVER AGENT', agent: 'resolver' }
+                ]);
+
+                // Automatically start Resolver after validation
+                setCurrentAgent('resolver');
+                startResolver(invoice.id, result);
             },
             (error) => {
-                setValidationMessages(prev => [...prev, {
+                setAgentMessages(prev => [...prev, {
                     step: 'error',
-                    message: `❌ Error: ${error.message}`
+                    message: `❌ Validator Error: ${error.message}`,
+                    agent: 'validator'
                 }]);
-                setValidatingId(null);
+                setProcessingId(null);
+            }
+        );
+    };
+
+    const startResolver = (invoiceId, validationResult) => {
+        const resolverCleanup = streamResolution(
+            invoiceId,
+            (data) => {
+                setAgentMessages(prev => [...prev, { ...data, agent: 'resolver' }]);
+            },
+            (result) => {
+                setResolverResult(result);
+                setAgentMessages(prev => [...prev, {
+                    step: 'complete',
+                    message: `✅ Resolution complete: ${result.final_recommendation} (${Math.round(result.confidence_score * 100)}% confidence)`,
+                    agent: 'resolver'
+                }]);
+                setProcessingId(null);
+                setCurrentAgent(null);
+            },
+            (error) => {
+                setAgentMessages(prev => [...prev, {
+                    step: 'error',
+                    message: `❌ Resolver Error: ${error.message}`,
+                    agent: 'resolver'
+                }]);
+                setProcessingId(null);
             }
         );
     };
 
     const getStatusTag = (invoice) => {
-        // Show validation status if available
         if (invoice.validation_status && invoice.validation_status !== 'pending') {
             if (invoice.validation_status === 'APPROVED') {
                 return <span className="status-tag validated">✓ Approved</span>;
@@ -95,9 +144,21 @@ const Invoices = () => {
     };
 
     const getStatusClass = (status) => {
-        if (status === 'APPROVED') return 'approved';
-        if (status === 'REJECTED') return 'rejected';
+        if (status === 'APPROVED' || status === 'APPROVE') return 'approved';
+        if (status === 'REJECTED' || status === 'REJECT') return 'rejected';
         return 'review';
+    };
+
+    const getMessageClass = (msg) => {
+        let classes = ['agent-msg', msg.agent];
+        if (msg.step === 'header') classes.push('header');
+        if (msg.step === 'complete') classes.push('complete');
+        if (msg.step === 'error') classes.push('error');
+        if (msg.step === 'divider') classes.push('divider');
+        if (msg.step?.includes('check_failed')) classes.push('failed');
+        if (msg.step?.includes('check_warning') || msg.step?.includes('conflict')) classes.push('warning');
+        if (msg.step?.includes('ocr')) classes.push('info');
+        return classes.join(' ');
     };
 
     return (
@@ -105,7 +166,7 @@ const Invoices = () => {
             <header className="screen-header">
                 <div>
                     <h1>Scanned Invoices</h1>
-                    <p className="subtitle">Click "Analyze" to extract, then "Validate" for compliance check.</p>
+                    <p className="subtitle">Run AI agents for extraction, validation, and conflict resolution.</p>
                 </div>
                 <div className="header-actions">
                     <button className="secondary-btn" onClick={fetchInvoices}>Refresh</button>
@@ -148,23 +209,21 @@ const Invoices = () => {
                                         <td>{new Date(inv.created_at).toLocaleDateString()}</td>
                                         <td className="gstin-code">{inv.content_type}</td>
                                         <td>{Math.round(inv.size / 1024)} KB</td>
-                                        <td>
-                                            {getStatusTag(inv)}
-                                        </td>
+                                        <td>{getStatusTag(inv)}</td>
                                         <td className="action-buttons">
                                             <button
                                                 className="analyze-btn"
                                                 onClick={() => handleAnalyze(inv)}
                                             >
-                                                🔍 Analyze
+                                                🔍 Extract
                                             </button>
                                             <button
                                                 className="validate-btn"
-                                                onClick={() => handleValidate(inv)}
-                                                disabled={validatingId === inv.id || !inv.extraction_result}
-                                                title={!inv.extraction_result ? 'Run Analyze first' : 'Run compliance validation'}
+                                                onClick={() => handleRunAgents(inv)}
+                                                disabled={processingId === inv.id || !inv.extraction_result}
+                                                title={!inv.extraction_result ? 'Run Extract first' : 'Run Validator + Resolver'}
                                             >
-                                                {validatingId === inv.id ? '⏳' : '🛡️'} Validate
+                                                {processingId === inv.id ? '⏳' : '🤖'} Run Agents
                                             </button>
                                         </td>
                                     </tr>
@@ -183,73 +242,93 @@ const Invoices = () => {
                 />
             )}
 
-            {/* Validation Modal */}
-            {showValidationModal && (
-                <div className="modal-overlay" onClick={() => !validatingId && setShowValidationModal(false)}>
-                    <div className="validation-modal glass-card" onClick={(e) => e.stopPropagation()}>
+            {/* Agent Processing Modal */}
+            {showAgentModal && (
+                <div className="modal-overlay" onClick={() => !processingId && setShowAgentModal(false)}>
+                    <div className="agent-modal glass-card" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h3>🛡️ Compliance Validation</h3>
-                            {!validatingId && (
-                                <button className="close-btn" onClick={() => setShowValidationModal(false)}>×</button>
+                            <h3>🤖 Agent Processing Pipeline</h3>
+                            {!processingId && (
+                                <button className="close-btn" onClick={() => {
+                                    setShowAgentModal(false);
+                                    fetchInvoices();
+                                }}>×</button>
                             )}
                         </div>
                         <div className="modal-content">
-                            {/* Streaming Messages */}
-                            <div className="validation-stream">
-                                {validationMessages.map((msg, idx) => (
-                                    <div key={idx} className={`stream-msg ${msg.step}`}>
+                            {/* Agent Logs */}
+                            <div className="agent-stream">
+                                {agentMessages.map((msg, idx) => (
+                                    <div key={idx} className={getMessageClass(msg)}>
                                         {msg.message}
                                     </div>
                                 ))}
-                                {validatingId && (
-                                    <div className="stream-msg processing">
-                                        <span className="spinner"></span> Processing...
+                                {processingId && (
+                                    <div className="agent-msg processing">
+                                        <span className="spinner"></span>
+                                        {currentAgent === 'validator' ? 'Validating...' : 'Resolving...'}
                                     </div>
                                 )}
+                                <div ref={messagesEndRef} />
                             </div>
 
-                            {/* Result */}
-                            {validationResult && (
-                                <div className={`validation-result ${getStatusClass(validationResult.overall_status)}`}>
-                                    <div className="result-header">
-                                        <span className={`status-badge ${getStatusClass(validationResult.overall_status)}`}>
-                                            {validationResult.overall_status?.replace(/_/g, ' ')}
+                            {/* Results Summary */}
+                            {resolverResult && (
+                                <div className={`agent-summary ${getStatusClass(resolverResult.final_recommendation)}`}>
+                                    <div className="summary-header">
+                                        <span className={`status-badge ${getStatusClass(resolverResult.final_recommendation)}`}>
+                                            {resolverResult.final_recommendation}
                                         </span>
-                                        <span className="score">
-                                            {Math.round(validationResult.compliance_score)}% Compliance
+                                        <span className="confidence">
+                                            {Math.round(resolverResult.confidence_score * 100)}% Confidence
                                         </span>
                                     </div>
 
-                                    <div className="result-stats">
-                                        <span className="stat passed">✓ {validationResult.checks_passed} Passed</span>
-                                        <span className="stat failed">✗ {validationResult.checks_failed} Failed</span>
-                                        <span className="stat warned">⚠ {validationResult.checks_warned} Warnings</span>
-                                    </div>
-
-                                    {validationResult.llm_reasoning && (
-                                        <div className="reasoning">
-                                            <strong>AI Analysis:</strong> {validationResult.llm_reasoning}
+                                    {validationResult && (
+                                        <div className="validation-summary">
+                                            <h5>Validation</h5>
+                                            <div className="stats-row">
+                                                <span className="stat passed">✓ {validationResult.checks_passed} Passed</span>
+                                                <span className="stat failed">✗ {validationResult.checks_failed} Failed</span>
+                                                <span className="stat warned">⚠ {validationResult.checks_warned} Warnings</span>
+                                            </div>
                                         </div>
                                     )}
 
-                                    {validationResult.human_intervention?.required && (
-                                        <div className="intervention-alert">
-                                            <strong>⚠️ Human Review Required</strong>
-                                            {validationResult.human_intervention.approval_level_required && (
-                                                <p>Approval Level: {validationResult.human_intervention.approval_level_required}</p>
-                                            )}
+                                    {resolverResult.conflict_resolutions?.length > 0 && (
+                                        <div className="resolution-summary">
+                                            <h5>Resolutions ({resolverResult.conflict_resolutions.length})</h5>
+                                            {resolverResult.conflict_resolutions.map((res, idx) => (
+                                                <div key={idx} className="resolution-item">
+                                                    <strong>{res.conflict_type}</strong>
+                                                    <p>{res.resolution}</p>
+                                                    <small>📚 {res.regulatory_basis}</small>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {resolverResult.key_risks?.length > 0 && (
+                                        <div className="risks-section">
+                                            <h5>⚠️ Key Risks</h5>
                                             <ul>
-                                                {validationResult.human_intervention.reasons?.map((r, i) => (
-                                                    <li key={i}>{r}</li>
+                                                {resolverResult.key_risks.map((risk, idx) => (
+                                                    <li key={idx}>{risk}</li>
                                                 ))}
                                             </ul>
                                         </div>
                                     )}
 
+                                    {resolverResult.requires_human_review && (
+                                        <div className="human-review-alert">
+                                            👤 Human Review Required (Confidence below 70%)
+                                        </div>
+                                    )}
+
                                     <button
-                                        className="primary-btn"
+                                        className="primary-btn full-width"
                                         onClick={() => {
-                                            setShowValidationModal(false);
+                                            setShowAgentModal(false);
                                             fetchInvoices();
                                         }}
                                     >
@@ -266,5 +345,3 @@ const Invoices = () => {
 };
 
 export default Invoices;
-
-
