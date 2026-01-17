@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { uploadFiles } from '../services/uploadService';
 import ExtractionStreamPanel from './ExtractionStreamPanel';
+import ValidationStreamPanel from './ValidationStreamPanel';
 import ExtractionModal from './ExtractionModal';
 import './Dashboard.css';
 
@@ -11,6 +12,13 @@ const Dashboard = () => {
     const [uploadResults, setUploadResults] = useState(null);
     const [showStreamPanel, setShowStreamPanel] = useState(false);
     const [selectedForDetails, setSelectedForDetails] = useState(null);
+
+    // Extraction and Validation state
+    const [extractionComplete, setExtractionComplete] = useState(false);
+    const [extractionResults, setExtractionResults] = useState({});
+    const [currentUploadId, setCurrentUploadId] = useState(null);
+    const [validationResult, setValidationResult] = useState(null);
+    const [showValidationModal, setShowValidationModal] = useState(false);
 
     const handleAction = (action) => {
         alert(`${action} triggered! The agent is now preparing the requested data.`);
@@ -26,6 +34,9 @@ const Dashboard = () => {
             setSelectedFiles(files);
             setUploadResults(null);
             setShowStreamPanel(false);
+            setExtractionComplete(false);
+            setExtractionResults({});
+            setValidationResult(null);
             console.log('Selected files:', files.map(f => f.name));
         }
     };
@@ -36,12 +47,19 @@ const Dashboard = () => {
         setIsUploading(true);
         setUploadResults(null);
         setShowStreamPanel(false);
+        setExtractionComplete(false);
+        setValidationResult(null);
 
         try {
             const results = await uploadFiles(selectedFiles);
             setUploadResults(results);
-            setSelectedFiles([]); // Clear selection
-            setShowStreamPanel(true); // Show streaming panel
+            setSelectedFiles([]);
+            setShowStreamPanel(true);
+
+            // Track the first upload ID for validation
+            if (results.length > 0 && results[0].id) {
+                setCurrentUploadId(results[0].id);
+            }
         } catch (error) {
             alert(`Upload failed: ${error.message}`);
         } finally {
@@ -51,6 +69,8 @@ const Dashboard = () => {
 
     const handleStreamComplete = (results) => {
         console.log('Extraction complete:', results);
+        setExtractionResults(results);
+        setExtractionComplete(true);
     };
 
     const handleViewDetails = (file, result) => {
@@ -59,6 +79,15 @@ const Dashboard = () => {
 
     const handleCloseModal = () => {
         setSelectedForDetails(null);
+    };
+
+    const handleValidationComplete = (result) => {
+        console.log('Validation complete:', result);
+        setValidationResult(result);
+    };
+
+    const handleViewValidationDetails = (result) => {
+        setShowValidationModal(true);
     };
 
     return (
@@ -135,6 +164,16 @@ const Dashboard = () => {
                         onViewDetails={handleViewDetails}
                     />
                 )}
+
+                {/* Validation Panel - Shows after extraction is complete */}
+                {extractionComplete && currentUploadId && (
+                    <ValidationStreamPanel
+                        uploadId={currentUploadId}
+                        extractionResult={extractionResults[currentUploadId]}
+                        onComplete={handleValidationComplete}
+                        onViewDetails={handleViewValidationDetails}
+                    />
+                )}
             </div>
 
             {/* Extraction Modal for viewing details */}
@@ -144,9 +183,63 @@ const Dashboard = () => {
                     onClose={handleCloseModal}
                 />
             )}
+
+            {/* Validation Result Modal */}
+            {showValidationModal && validationResult && (
+                <div className="modal-overlay" onClick={() => setShowValidationModal(false)}>
+                    <div className="validation-modal glass-card" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3>Validation Report</h3>
+                            <button className="close-btn" onClick={() => setShowValidationModal(false)}>×</button>
+                        </div>
+                        <div className="modal-content">
+                            <div className="validation-summary">
+                                <div className={`status-badge large ${validationResult.overall_status?.toLowerCase()}`}>
+                                    {validationResult.overall_status?.replace(/_/g, ' ')}
+                                </div>
+                                <div className="score-display">
+                                    <span className="score">{Math.round(validationResult.compliance_score)}%</span>
+                                    <span className="label">Compliance Score</span>
+                                </div>
+                            </div>
+
+                            {validationResult.llm_reasoning && (
+                                <div className="reasoning-section">
+                                    <h4>AI Analysis</h4>
+                                    <p>{validationResult.llm_reasoning}</p>
+                                </div>
+                            )}
+
+                            {validationResult.validation_results?.length > 0 && (
+                                <div className="failed-checks">
+                                    <h4>Issues Found ({validationResult.validation_results.length})</h4>
+                                    {validationResult.validation_results.map((check, idx) => (
+                                        <div key={idx} className={`check-item ${check.status?.toLowerCase()}`}>
+                                            <span className="check-code">{check.check_code}</span>
+                                            <span className="check-message">{check.message}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {validationResult.detected_anomalies?.length > 0 && (
+                                <div className="anomalies-section">
+                                    <h4>⚠️ Anomalies Detected</h4>
+                                    <ul>
+                                        {validationResult.detected_anomalies.map((a, idx) => (
+                                            <li key={idx}>{a}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
 
 export default Dashboard;
+
 

@@ -1,0 +1,334 @@
+.validation-stream-panel {
+    background: rgba(15, 20, 35, 0.95);
+    border: 1px solid rgba(100, 120, 200, 0.3);
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 16px;
+    backdrop-filter: blur(10px);
+}
+
+.validation-stream-panel.not-started {
+    background: linear-gradient(135deg, rgba(20, 30, 50, 0.9), rgba(30, 45, 70, 0.9));
+}
+
+.validation-prompt {
+    text-align: center;
+    padding: 24px;
+}
+
+.prompt-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+}
+
+.validation-prompt h4 {
+    color: #e0e5f0;
+    font-size: 1.3rem;
+    margin: 0 0 8px 0;
+}
+
+.validation-prompt p {
+    color: #8892a8;
+    font-size: 0.9rem;
+    margin: 0 0 20px 0;
+}
+
+.start-validation-btn {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    border: none;
+    padding: 14px 32px;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+}
+
+.start-validation-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 30px rgba(99, 102, 241, 0.6);
+}
+
+.btn-icon {
+    font-size: 1.2rem;
+}
+
+.stream-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(100, 120, 200, 0.2);
+}
+
+.stream-header h4 {
+    color: #c0c8e0;
+    font-size: 1rem;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.status-badge {
+    font-size: 0.75rem;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-weight: 500;
+}
+
+.status-badge.approved {
+    background: rgba(34, 197, 94, 0.2);
+    color: #22c55e;
+}
+
+.status-badge.rejected {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+.status-badge.review {
+    background: rgba(251, 191, 36, 0.2);
+    color: #fbbf24;
+}
+
+.close-stream-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: #8892a8;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.close-stream-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.stream-messages {
+    max-height: 200px;
+    overflow-y: auto;
+    margin-bottom: 16px;
+    padding: 8px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+}
+
+.stream-message {
+    color: #a0a8c0;
+    font-size: 0.85rem;
+    padding: 6px 10px;
+    margin-bottom: 4px;
+    border-radius: 4px;
+    font-family: 'SF Mono', 'Monaco', monospace;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.stream-message.complete {
+    color: #22c55e;
+    background: rgba(34, 197, 94, 0.1);
+}
+
+.stream-message.check_failed {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.stream-message.check_warning {
+    color: #fbbf24;
+    background: rgba(251, 191, 36, 0.1);
+}
+
+.stream-message.error {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.stream-spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(99, 102, 241, 0.3);
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Result Section */
+.validation-result {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.validation-result.approved {
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.validation-result.rejected {
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.validation-result.review {
+    border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.result-score {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.score-circle {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.2));
+    border: 3px solid #6366f1;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+}
+
+.validation-result.approved .score-circle {
+    border-color: #22c55e;
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(21, 128, 61, 0.2));
+}
+
+.validation-result.rejected .score-circle {
+    border-color: #ef4444;
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(185, 28, 28, 0.2));
+}
+
+.validation-result.review .score-circle {
+    border-color: #fbbf24;
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(202, 138, 4, 0.2));
+}
+
+.score-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: white;
+    line-height: 1;
+}
+
+.score-label {
+    font-size: 0.75rem;
+    color: #8892a8;
+    text-transform: uppercase;
+}
+
+.result-stats {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-bottom: 20px;
+}
+
+.stat {
+    text-align: center;
+    padding: 12px 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+}
+
+.stat-value {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: white;
+}
+
+.stat.passed .stat-value {
+    color: #22c55e;
+}
+
+.stat.failed .stat-value {
+    color: #ef4444;
+}
+
+.stat.warned .stat-value {
+    color: #fbbf24;
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    color: #8892a8;
+    text-transform: uppercase;
+}
+
+/* Human Intervention */
+.human-intervention {
+    background: rgba(251, 191, 36, 0.1);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.human-intervention h5 {
+    color: #fbbf24;
+    margin: 0 0 8px 0;
+    font-size: 0.95rem;
+}
+
+.approval-level {
+    color: #d0d8e8;
+    font-size: 0.9rem;
+    margin: 0 0 8px 0;
+}
+
+.intervention-reasons {
+    margin: 0;
+    padding-left: 20px;
+    color: #a0a8c0;
+    font-size: 0.85rem;
+}
+
+.intervention-reasons li {
+    margin-bottom: 4px;
+}
+
+.result-actions {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}
+
+.view-details-btn {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.view-details-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+}
