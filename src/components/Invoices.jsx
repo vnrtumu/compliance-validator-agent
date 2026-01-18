@@ -189,6 +189,9 @@ const Invoices = () => {
                 }]);
                 setProcessingId(null);
                 setCurrentAgent(null);
+
+                // Refresh invoices list to show updated button
+                fetchInvoices();
             },
             (error) => {
                 setAgentMessages(prev => [...prev, {
@@ -242,17 +245,18 @@ const Invoices = () => {
 
     // Check if invoice has a cached report
     const hasReport = (invoice) => {
-        return invoice?.validation_result?.report != null;
+        return invoice?.reporter_result != null;
     };
 
     // View cached report without running agents
     const handleViewCachedReport = (invoice) => {
-        const cachedReport = invoice.validation_result?.report;
+        const cachedReport = invoice.reporter_result;
         const cachedValidation = invoice.validation_result || {};
+        const cachedResolver = invoice.resolver_result || null;
 
         setReportResult(cachedReport);
         setValidationResult(cachedValidation);
-        setResolverResult(invoice.validation_result?.resolution || null);
+        setResolverResult(cachedResolver);
         setShowAgentModal(true);
         setAgentMessages([{ step: 'info', message: '📋 Showing cached report', agent: 'system' }]);
     };
@@ -394,49 +398,155 @@ const Invoices = () => {
                             {/* Results Summary - Show when report is ready */}
                             {reportResult && (
                                 <div className={`agent-summary ${getStatusClass(reportResult.decision?.status)}`}>
+                                    {/* Report Header with ID and Timestamp */}
+                                    <div className="report-meta" style={{ fontSize: '0.85rem', color: '#888', marginBottom: '0.5rem' }}>
+                                        <div>📋 {reportResult.report_id} | {reportResult.report_type}</div>
+                                        <div>🕐 Generated: {new Date(reportResult.generated_at).toLocaleString()}</div>
+                                    </div>
+
+                                    {/* Decision & Risk Header */}
                                     <div className="summary-header">
                                         <span className={`status-badge ${getStatusClass(reportResult.decision?.status)}`}>
                                             {reportResult.decision?.status}
                                         </span>
                                         <span className="risk-badge">
-                                            Risk: {reportResult.risk_assessment?.level}
+                                            Risk: {reportResult.risk_assessment?.level} ({reportResult.risk_assessment?.score}/100)
                                         </span>
+                                        {reportResult.decision?.confidence && (
+                                            <span style={{ fontSize: '0.9rem', color: '#aaa' }}>
+                                                Confidence: {(reportResult.decision.confidence * 100).toFixed(0)}%
+                                            </span>
+                                        )}
                                     </div>
 
+                                    {/* Executive Summary */}
                                     <div className="exec-summary">
                                         <p>{reportResult.executive_summary}</p>
                                     </div>
 
-                                    {validationResult && (
-                                        <div className="validation-summary">
-                                            <h5>Validation</h5>
-                                            <div className="stats-row">
-                                                <span className="stat passed">✓ {validationResult.checks_passed} Passed</span>
-                                                <span className="stat failed">✗ {validationResult.checks_failed} Failed</span>
-                                                <span className="stat warned">⚠ {validationResult.checks_warned} Warnings</span>
+                                    {/* Decision Rationale */}
+                                    {reportResult.decision?.rationale && (
+                                        <div style={{ background: '#2a2a2a', padding: '0.75rem', borderRadius: '6px', marginTop: '0.75rem' }}>
+                                            <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>💡 Decision Rationale</h5>
+                                            <p style={{ margin: 0, fontSize: '0.85rem', color: '#ccc' }}>{reportResult.decision.rationale}</p>
+                                        </div>
+                                    )}
+
+                                    {/* Invoice Details */}
+                                    {reportResult.invoice_details && (
+                                        <div style={{ background: '#1e3a5f', padding: '0.75rem', borderRadius: '6px', marginTop: '0.75rem' }}>
+                                            <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>📄 Invoice Details</h5>
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem', fontSize: '0.85rem' }}>
+                                                <div><strong>Number:</strong> {reportResult.invoice_details.number}</div>
+                                                <div><strong>Date:</strong> {reportResult.invoice_details.date}</div>
+                                                <div><strong>Vendor:</strong> {reportResult.invoice_details.vendor}</div>
+                                                <div><strong>Total:</strong> ₹{reportResult.invoice_details.total?.toLocaleString()}</div>
+                                                {reportResult.invoice_details.gstin && (
+                                                    <div style={{ gridColumn: 'span 2' }}><strong>GSTIN:</strong> {reportResult.invoice_details.gstin}</div>
+                                                )}
                                             </div>
                                         </div>
                                     )}
 
+                                    {/* Compliance Stats */}
+                                    {reportResult.compliance_stats && (
+                                        <div className="validation-summary" style={{ marginTop: '0.75rem' }}>
+                                            <h5>📊 Compliance Statistics</h5>
+                                            <div className="stats-row">
+                                                <span className="stat">Total: {reportResult.compliance_stats.total_checks}</span>
+                                                <span className="stat passed">✓ {reportResult.compliance_stats.passed} Passed</span>
+                                                <span className="stat failed">✗ {reportResult.compliance_stats.failed} Failed</span>
+                                                <span className="stat warned">⚠ {reportResult.compliance_stats.warnings} Warnings</span>
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', fontSize: '0.85rem' }}>
+                                                <span>GST: {reportResult.compliance_stats.gst_compliance}</span>
+                                                <span>TDS: {reportResult.compliance_stats.tds_compliance}</span>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Risk Factors */}
+                                    {reportResult.risk_assessment?.factors?.length > 0 && (
+                                        <div style={{ marginTop: '0.75rem' }}>
+                                            <h5 style={{ fontSize: '0.9rem' }}>⚠️ Risk Factors</h5>
+                                            <ul style={{ margin: '0.25rem 0 0 1.5rem', fontSize: '0.85rem', color: '#ffaa66' }}>
+                                                {reportResult.risk_assessment.factors.map((factor, idx) => (
+                                                    <li key={idx}>{factor}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+
+                                    {/* Key Findings */}
+                                    {reportResult.key_findings?.length > 0 && (
+                                        <div style={{ marginTop: '0.75rem' }}>
+                                            <h5 style={{ fontSize: '0.9rem' }}>🔍 Key Findings</h5>
+                                            {reportResult.key_findings.map((finding, idx) => (
+                                                <div key={idx} style={{ background: '#2a2a2a', padding: '0.5rem', borderRadius: '4px', marginTop: '0.5rem', fontSize: '0.85rem' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                                                        <strong>[{finding.category}]</strong>
+                                                        <span style={{ color: finding.impact === 'HIGH' ? '#ff6b6b' : finding.impact === 'MEDIUM' ? '#ffaa66' : '#66ff66' }}>
+                                                            {finding.impact} Impact
+                                                        </span>
+                                                    </div>
+                                                    <div>{finding.finding}</div>
+                                                    <div style={{ color: '#66ccff', marginTop: '0.25rem' }}>→ {finding.recommendation}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Action Items */}
                                     {reportResult.action_items?.length > 0 && (
                                         <div className="actions-section">
                                             <h5>🚨 Action Items ({reportResult.action_items.length})</h5>
-                                            {reportResult.action_items.slice(0, 3).map((action, idx) => (
+                                            {reportResult.action_items.map((action, idx) => (
                                                 <div key={idx} className={`action-item ${action.priority?.toLowerCase()}`}>
                                                     <span className="priority">{action.priority}</span>
                                                     <span className="action-text">{action.action}</span>
                                                     <span className="owner">{action.owner} - {action.deadline}</span>
+                                                    {action.regulatory_basis && (
+                                                        <div style={{ fontSize: '0.75rem', color: '#888', marginTop: '0.25rem' }}>
+                                                            📜 {action.regulatory_basis}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             ))}
-                                            {reportResult.action_items.length > 3 && (
-                                                <div className="more-actions">+{reportResult.action_items.length - 3} more</div>
+                                        </div>
+                                    )}
+
+                                    {/* Recommendations */}
+                                    {reportResult.recommendations?.length > 0 && (
+                                        <div style={{ marginTop: '0.75rem' }}>
+                                            <h5 style={{ fontSize: '0.9rem' }}>💡 Recommendations</h5>
+                                            <ul style={{ margin: '0.25rem 0 0 1.5rem', fontSize: '0.85rem', color: '#66ff99' }}>
+                                                {reportResult.recommendations.map((rec, idx) => (
+                                                    <li key={idx}>{rec}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+
+                                    {/* Approval Workflow */}
+                                    {reportResult.approval_workflow && (
+                                        <div style={{ marginTop: '0.75rem', background: '#2a2a2a', padding: '0.75rem', borderRadius: '6px' }}>
+                                            <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>👤 Approval Workflow</h5>
+                                            <div style={{ display: 'flex', gap: '1rem', fontSize: '0.85rem' }}>
+                                                <span>Current: <strong>{reportResult.approval_workflow.current_level}</strong></span>
+                                                <span>Required: <strong>{reportResult.approval_workflow.required_level}</strong></span>
+                                            </div>
+                                            {reportResult.approval_workflow.escalation_needed && (
+                                                <div className="human-review-alert" style={{ marginTop: '0.5rem' }}>
+                                                    ⚠️ Escalation Required: {reportResult.approval_workflow.required_level}
+                                                </div>
                                             )}
                                         </div>
                                     )}
 
-                                    {reportResult.approval_workflow?.escalation_needed && (
-                                        <div className="human-review-alert">
-                                            ⚠️ Escalation Required: {reportResult.approval_workflow.required_level}
+                                    {/* LLM Metadata */}
+                                    {reportResult.llm_metadata && (
+                                        <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: '#666', borderTop: '1px solid #333', paddingTop: '0.5rem' }}>
+                                            🤖 Generated by: {reportResult.llm_metadata.provider.toUpperCase()} ({reportResult.llm_metadata.model})
                                         </div>
                                     )}
 
@@ -446,6 +556,7 @@ const Invoices = () => {
                                             setShowAgentModal(false);
                                             fetchInvoices();
                                         }}
+                                        style={{ marginTop: '1rem' }}
                                     >
                                         Close
                                     </button>

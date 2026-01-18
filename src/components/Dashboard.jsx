@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { uploadFiles } from '../services/uploadService';
 import { getLLMSettings } from '../services/settingsService';
+import { getDashboardStats } from '../services/reportsService';
 import ExtractionStreamPanel from './ExtractionStreamPanel';
 import ValidationStreamPanel from './ValidationStreamPanel';
 import ResolverStreamPanel from './ResolverStreamPanel';
@@ -37,8 +38,19 @@ const Dashboard = () => {
     const [llmProvider, setLlmProvider] = useState('groq');
     const [llmModel, setLlmModel] = useState('');
 
+    // Dashboard statistics state
+    const [dashboardStats, setDashboardStats] = useState({
+        total_invoices: 0,
+        approved: 0,
+        rejected: 0,
+        pending_review: 0,
+        active_flags: 0,
+        compliance_rate: 0.0
+    });
+
     useEffect(() => {
         fetchLLMSettings();
+        fetchDashboardStats();
     }, []);
 
     const fetchLLMSettings = async () => {
@@ -48,6 +60,15 @@ const Dashboard = () => {
             setLlmModel(settings.model);
         } catch (error) {
             console.error('Failed to fetch LLM settings:', error);
+        }
+    };
+
+    const fetchDashboardStats = async () => {
+        try {
+            const stats = await getDashboardStats();
+            setDashboardStats(stats);
+        } catch (error) {
+            console.error('Failed to fetch dashboard stats:', error);
         }
     };
 
@@ -161,6 +182,8 @@ const Dashboard = () => {
     const handleReportComplete = (result) => {
         console.log('Report complete:', result);
         setReportResult(result);
+        // Refresh dashboard stats after report completes
+        fetchDashboardStats();
     };
 
     const handleViewReportDetails = (result) => {
@@ -196,23 +219,23 @@ const Dashboard = () => {
             <div className="stats-grid">
                 <div className="glass-card stat-card" onClick={() => handleAction('Invoices Detail')} style={{ cursor: 'pointer' }}>
                     <span className="stat-label">Invoices Processed</span>
-                    <span className="stat-value">1,284</span>
-                    <span className="stat-trend positive">+12% from last month</span>
+                    <span className="stat-value">{dashboardStats.total_invoices.toLocaleString()}</span>
+                    <span className="stat-trend positive">Total uploaded</span>
                 </div>
                 <div className="glass-card stat-card" onClick={() => handleAction('Compliance Detail')} style={{ cursor: 'pointer' }}>
-                    <span className="stat-label">Compliance Rate</span>
-                    <span className="stat-value">99.2%</span>
-                    <span className="stat-trend positive">Stable</span>
+                    <span className="stat-label">Approved Invoices</span>
+                    <span className="stat-value">{dashboardStats.approved}</span>
+                    <span className="stat-trend positive">{dashboardStats.compliance_rate}% compliance</span>
                 </div>
                 <div className="glass-card stat-card" onClick={() => handleAction('Flagged Invoices')} style={{ cursor: 'pointer' }}>
-                    <span className="stat-label">Active Flags</span>
-                    <span className="stat-value">14</span>
-                    <span className="stat-trend negative">+2 since yesterday</span>
+                    <span className="stat-label">Rejected Invoices</span>
+                    <span className="stat-value">{dashboardStats.rejected}</span>
+                    <span className="stat-trend negative">{dashboardStats.active_flags} with flags</span>
                 </div>
                 <div className="glass-card stat-card" onClick={() => handleAction('Review Queue')} style={{ cursor: 'pointer' }}>
-                    <span className="stat-label">Pending Review</span>
-                    <span className="stat-value">5</span>
-                    <span className="stat-trend">Needs attention</span>
+                    <span className="stat-label">Human Review Needed</span>
+                    <span className="stat-value">{dashboardStats.pending_review}</span>
+                    <span className="stat-trend">Requires attention</span>
                 </div>
             </div>
 
