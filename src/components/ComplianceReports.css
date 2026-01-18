@@ -55,7 +55,7 @@
 
 .reports-grid {
     display: grid;
-    grid-template-columns: 1.5fr 1fr;
+    grid-template-columns: 1.2fr 1fr;
     gap: 24px;
     margin-bottom: 32px;
 }
@@ -69,33 +69,48 @@
 
 .chart-placeholder h3,
 .categories-list h3 {
-    font-size: 16px;
-    margin-bottom: 24px;
+    font-size: 15px;
+    margin-bottom: 20px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .simple-chart {
     flex: 1;
-    height: 180px;
+    height: 200px;
     display: flex;
     align-items: flex-end;
-    gap: 12px;
-    padding-bottom: 12px;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 12px 0;
     border-bottom: 1px solid var(--glass-border);
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    padding: 16px;
 }
 
 .chart-bar {
     flex: 1;
-    background: linear-gradient(to top, var(--accent-primary), var(--accent-secondary));
+    background: linear-gradient(to top, #3b82f6, #8b5cf6);
     border-radius: 4px 4px 0 0;
-    min-width: 20px;
+    min-width: 16px;
+    max-width: 40px;
     transition: height 0.3s ease;
+    position: relative;
+}
+
+.chart-bar:hover {
+    opacity: 0.8;
+    transform: scaleY(1.02);
+    transform-origin: bottom;
 }
 
 .chart-labels {
     display: flex;
     justify-content: space-between;
     padding-top: 12px;
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text-muted);
 }
 

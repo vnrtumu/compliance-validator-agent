@@ -136,12 +136,18 @@ const ComplianceReports = () => {
     ];
 
     // Prepare trend chart data - normalize to percentage for display
-    const trendChartData = trend_data && trend_data.length > 0
+    // Use sample data if we only have 1 or 2 data points
+    const trendChartData = trend_data && trend_data.length > 2
         ? trend_data.slice(-10).map(d => ({
-            height: Math.round((d.score / totalPoints) * 100),
+            height: Math.max(10, Math.round((d.score / 100) * 100)), // Use % directly, min 10%
+            score: d.score,
             label: new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
         }))
-        : [40, 60, 45, 70, 85, 65, 90, 75, 80, 95].map((h, i) => ({ height: h, label: `Day ${i + 1}` }));
+        : [65, 72, 68, 78, 82, 75, 88, 80, 83, 85].map((h, i) => ({
+            height: h,
+            score: h,
+            label: `Day ${i + 1}`
+        }));
 
     return (
         <div className="reports-screen fade-in">
@@ -170,14 +176,19 @@ const ComplianceReports = () => {
 
             <div className="reports-grid">
                 <div className="glass-card chart-placeholder">
-                    <h3>Compliance Score Trends {trend_data?.length > 0 ? `(Last ${trend_data.length} Days)` : '(Sample Data)'}</h3>
+                    <h3>Compliance Trend {trend_data?.length > 2 ? `(Last ${trend_data.length} Days)` : '(Sample)'}</h3>
                     <div className="simple-chart">
                         {trendChartData.map((item, i) => (
-                            <div key={i} className="chart-bar" style={{ height: `${item.height}%` }}></div>
+                            <div
+                                key={i}
+                                className="chart-bar"
+                                style={{ height: `${item.height}%` }}
+                                title={`${item.label}: ${item.score}%`}
+                            ></div>
                         ))}
                     </div>
                     <div className="chart-labels">
-                        {trendChartData.slice(0, 4).map((item, i) => (
+                        {trendChartData.filter((_, i) => i % 2 === 0 || trendChartData.length <= 5).slice(0, 5).map((item, i) => (
                             <span key={i}>{item.label}</span>
                         ))}
                     </div>
@@ -223,6 +234,62 @@ const ComplianceReports = () => {
                     </div>
                 )}
             </div>
+
+            {/* Recent Invoices Section */}
+            {reportsData?.recent_invoices && reportsData.recent_invoices.length > 0 && (
+                <div className="glass-card recent-invoices-section" style={{ marginTop: '1.5rem' }}>
+                    <h3>Recent Invoices</h3>
+                    <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <thead>
+                                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                                    <th style={{ padding: '0.75rem', textAlign: 'left', color: '#888', fontSize: '0.8rem' }}>ID</th>
+                                    <th style={{ padding: '0.75rem', textAlign: 'left', color: '#888', fontSize: '0.8rem' }}>FILENAME</th>
+                                    <th style={{ padding: '0.75rem', textAlign: 'left', color: '#888', fontSize: '0.8rem' }}>STATUS</th>
+                                    <th style={{ padding: '0.75rem', textAlign: 'left', color: '#888', fontSize: '0.8rem' }}>SCORE</th>
+                                    <th style={{ padding: '0.75rem', textAlign: 'left', color: '#888', fontSize: '0.8rem' }}>DATE</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {reportsData.recent_invoices.map((inv) => (
+                                    <tr key={inv.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                        <td style={{ padding: '0.75rem', color: '#60a5fa' }}>#{inv.id}</td>
+                                        <td style={{ padding: '0.75rem', maxWidth: '250px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                            {inv.filename}
+                                        </td>
+                                        <td style={{ padding: '0.75rem' }}>
+                                            <span style={{
+                                                padding: '0.25rem 0.5rem',
+                                                borderRadius: '4px',
+                                                fontSize: '0.75rem',
+                                                fontWeight: 600,
+                                                background: inv.invoice_status === 'APPROVED' ? 'rgba(74, 222, 128, 0.15)' :
+                                                    inv.invoice_status === 'REJECTED' ? 'rgba(239, 68, 68, 0.15)' :
+                                                        'rgba(251, 191, 36, 0.15)',
+                                                color: inv.invoice_status === 'APPROVED' ? '#4ade80' :
+                                                    inv.invoice_status === 'REJECTED' ? '#f87171' : '#fbbf24'
+                                            }}>
+                                                {inv.invoice_status || 'Pending'}
+                                            </span>
+                                        </td>
+                                        <td style={{
+                                            padding: '0.75rem',
+                                            color: inv.compliance_score >= 80 ? '#4ade80' :
+                                                inv.compliance_score >= 60 ? '#fbbf24' : '#f87171',
+                                            fontWeight: 600
+                                        }}>
+                                            {inv.compliance_score ? `${inv.compliance_score}%` : '-'}
+                                        </td>
+                                        <td style={{ padding: '0.75rem', color: '#888' }}>
+                                            {inv.created_at ? new Date(inv.created_at).toLocaleDateString() : '-'}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

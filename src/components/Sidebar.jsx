@@ -7,7 +7,6 @@ const Sidebar = () => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊', path: '/' },
     { id: 'invoices', label: 'Invoices', icon: '📄', path: '/invoices' },
-    { id: 'agents', label: 'Agent Center', icon: '🤖', path: '/agents' },
     { id: 'reports', label: 'Compliance Reports', icon: '📝', path: '/reports' },
     { id: 'settings', label: 'Settings', icon: '⚙️', path: '/settings' },
   ];
