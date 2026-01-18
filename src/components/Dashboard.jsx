@@ -70,6 +70,16 @@ const Dashboard = () => {
             const results = await uploadFiles(selectedFiles);
             setUploadResults(results);
             setSelectedFiles([]);
+
+            // Check for duplicates
+            const duplicates = results.filter(r => r.status === 'duplicate');
+            if (duplicates.length > 0) {
+                const duplicateNames = duplicates.map(d => `• ${d.filename} (already exists as ID: ${d.id})`).join('\n');
+                alert(`⚠️ Duplicate File(s) Detected:\n\n${duplicateNames}\n\nThese files were not uploaded again. Check the Invoices page to view existing records.`);
+                setShowStreamPanel(false);
+                return;
+            }
+
             setShowStreamPanel(true);
 
             // Track the first upload ID for validation
