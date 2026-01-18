@@ -1089,23 +1089,7 @@ This project is created for the **Agentic AI Assessment Challenge v1**.
 
 ## 👨‍💻 Author
 
-**Venkat Reddy**
+**Tumu Venkata Narayana Reddy - 101445**
+**venkata.reddy@digital.datamatics.com**
 
-Assessment submission for Agentic AI Test Challenge (25/25 weightage for architecture documentation)
 
----
-
-## 🎯 Assessment Criteria Met
-
-✅ **Architecture Document**: Comprehensive with detailed diagrams  
-✅ **LLM Models**: OpenAI GPT-4o, GROQ Llama 3.3, DeepSeek, Grok documented  
-✅ **Tools**: FastAPI, React, PostgreSQL, PyMuPDF, SQLAlchemy  
-✅ **Flow Diagrams**: Mermaid diagrams for architecture, workflow, agents  
-✅ **Implementation Plan**: Detailed agent design and database schema  
-✅ **Clarity**: 25/25 weightage target with visual aids  
-
-**Total Architecture Documentation Score**: 🎯 **25/25**
-
----
-
-**Last Updated**: January 18, 2026
