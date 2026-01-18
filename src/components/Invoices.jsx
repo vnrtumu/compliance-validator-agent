@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { getInvoices } from '../services/uploadService';
+import { getLLMSettings } from '../services/settingsService';
 import { streamValidation } from '../services/validationService';
 import { streamResolution } from '../services/resolverService';
 import { streamReport } from '../services/reporterService';
@@ -22,8 +23,12 @@ const Invoices = () => {
     const [showAgentModal, setShowAgentModal] = useState(false);
     const streamContainerRef = useRef(null);
 
+    // LLM Provider state
+    const [llmProvider, setLlmProvider] = useState('groq');
+
     useEffect(() => {
         fetchInvoices();
+        fetchLLMSettings();
     }, []);
 
     useEffect(() => {
@@ -46,6 +51,25 @@ const Invoices = () => {
         }
     };
 
+    const fetchLLMSettings = async () => {
+        try {
+            const settings = await getLLMSettings();
+            setLlmProvider(settings.provider);
+        } catch (error) {
+            console.error('Failed to fetch LLM settings:', error);
+        }
+    };
+
+    const getProviderDisplayName = (provider) => {
+        const names = {
+            'openai': 'OpenAI',
+            'groq': 'GROQ',
+            'deepseek': 'DeepSeek',
+            'grok': 'Grok'
+        };
+        return names[provider] || provider.toUpperCase();
+    };
+
     const handleAnalyze = (invoice) => {
         setSelectedInvoice(invoice);
     };
@@ -53,6 +77,26 @@ const Invoices = () => {
     const handleCloseModal = () => {
         setSelectedInvoice(null);
         fetchInvoices();
+    };
+
+    const handleExtractionComplete = (invoice, extractionResult) => {
+        // Close extraction modal
+        setSelectedInvoice(null);
+
+        // Refresh invoices to get updated data
+        fetchInvoices();
+
+        // Automatically start the agent pipeline
+        // Note: We need to get the updated invoice from the list
+        // For now, trigger with the invoice we have
+        const updatedInvoice = {
+            ...invoice,
+            extraction_result: extractionResult,
+            is_valid: extractionResult.is_valid_invoice
+        };
+
+        // Start agent pipeline automatically
+        handleRunAgents(updatedInvoice);
     };
 
     const handleRunAgents = (invoice) => {
@@ -217,7 +261,20 @@ const Invoices = () => {
         <div className="invoices-screen fade-in">
             <header className="screen-header">
                 <div>
-                    <h1>Scanned Invoices</h1>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <h1>Scanned Invoices</h1>
+                        <span style={{
+                            fontSize: '0.75rem',
+                            padding: '0.25rem 0.75rem',
+                            backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                            color: '#60a5fa',
+                            borderRadius: '1rem',
+                            border: '1px solid rgba(59, 130, 246, 0.3)',
+                            fontWeight: 600
+                        }}>
+                            🤖 {getProviderDisplayName(llmProvider)}
+                        </span>
+                    </div>
                     <p className="subtitle">Run AI agents for extraction, validation, and conflict resolution.</p>
                 </div>
                 <div className="header-actions">
@@ -300,6 +357,7 @@ const Invoices = () => {
                 <ExtractionModal
                     upload={selectedInvoice}
                     onClose={handleCloseModal}
+                    onExtractionComplete={handleExtractionComplete}
                 />
             )}
 

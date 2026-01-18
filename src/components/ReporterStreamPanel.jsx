@@ -21,6 +21,13 @@ const ReporterStreamPanel = ({ uploadId, resolverResult, onComplete, onViewDetai
         }
     }, [messages]);
 
+    useEffect(() => {
+        // **AUTO-START** report generation when component mounts
+        if (!hasStarted && uploadId) {
+            handleStart();
+        }
+    }, []); // Run once on mount
+
     const handleStart = () => {
         if (!uploadId) return;
 

@@ -22,6 +22,13 @@ const ResolverStreamPanel = ({ uploadId, validationResult, onComplete, onViewDet
         }
     }, [messages]);
 
+    useEffect(() => {
+        // **AUTO-START** resolver when component mounts
+        if (!hasStarted && uploadId) {
+            handleStart();
+        }
+    }, []); // Run once on mount
+
     const handleStart = () => {
         if (!uploadId) return;
 

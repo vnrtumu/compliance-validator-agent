@@ -9,7 +9,7 @@ import './ExtractionModal.css';
  * Shows the AI agent's decision (Accept/Reject), confidence score,
  * and extracted invoice fields.
  */
-const ExtractionModal = ({ upload, onClose }) => {
+const ExtractionModal = ({ upload, onClose, onExtractionComplete }) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [result, setResult] = useState(null);
@@ -34,6 +34,14 @@ const ExtractionModal = ({ upload, onClose }) => {
         try {
             const extractionResult = await extractDocument(upload.id);
             setResult(extractionResult);
+
+            // Automatically trigger agent pipeline if extraction succeeds and invoice is valid
+            if (onExtractionComplete && extractionResult.is_valid_invoice) {
+                // Close this modal and trigger agents after a brief delay to show result
+                setTimeout(() => {
+                    onExtractionComplete(upload, extractionResult);
+                }, 1500);
+            }
         } catch (err) {
             setError(err.message || 'Extraction failed');
         } finally {

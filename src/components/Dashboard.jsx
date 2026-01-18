@@ -1,5 +1,6 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { uploadFiles } from '../services/uploadService';
+import { getLLMSettings } from '../services/settingsService';
 import ExtractionStreamPanel from './ExtractionStreamPanel';
 import ValidationStreamPanel from './ValidationStreamPanel';
 import ResolverStreamPanel from './ResolverStreamPanel';
@@ -31,6 +32,34 @@ const Dashboard = () => {
     // Reporter state
     const [reportResult, setReportResult] = useState(null);
     const [showReportModal, setShowReportModal] = useState(false);
+
+    // LLM Provider state
+    const [llmProvider, setLlmProvider] = useState('groq');
+    const [llmModel, setLlmModel] = useState('');
+
+    useEffect(() => {
+        fetchLLMSettings();
+    }, []);
+
+    const fetchLLMSettings = async () => {
+        try {
+            const settings = await getLLMSettings();
+            setLlmProvider(settings.provider);
+            setLlmModel(settings.model);
+        } catch (error) {
+            console.error('Failed to fetch LLM settings:', error);
+        }
+    };
+
+    const getProviderDisplayName = (provider) => {
+        const names = {
+            'openai': 'OpenAI',
+            'groq': 'GROQ',
+            'deepseek': 'DeepSeek',
+            'grok': 'Grok'
+        };
+        return names[provider] || provider.toUpperCase();
+    };
 
     const handleAction = (action) => {
         alert(`${action} triggered! The agent is now preparing the requested data.`);
@@ -143,7 +172,20 @@ const Dashboard = () => {
         <div className="dashboard-content fade-in">
             <header className="dashboard-header">
                 <div>
-                    <h1>Compliance Overview</h1>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <h1>Compliance Overview</h1>
+                        <span style={{
+                            fontSize: '0.75rem',
+                            padding: '0.25rem 0.75rem',
+                            backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                            color: '#60a5fa',
+                            borderRadius: '1rem',
+                            border: '1px solid rgba(59, 130, 246, 0.3)',
+                            fontWeight: 600
+                        }}>
+                            🤖 {getProviderDisplayName(llmProvider)}
+                        </span>
+                    </div>
                     <p className="subtitle">Welcome back, John. Here is what's happening today.</p>
                 </div>
                 <button className="primary-btn" onClick={() => handleAction('Generate Full Report')}>

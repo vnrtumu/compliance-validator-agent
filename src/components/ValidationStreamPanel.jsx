@@ -21,6 +21,13 @@ const ValidationStreamPanel = ({ uploadId, extractionResult, onComplete, onViewD
     }, [messages]);
 
     useEffect(() => {
+        // **AUTO-START** validation when component mounts
+        if (!isStarted) {
+            startValidation();
+        }
+    }, []); // Empty dependency array = run once on mount
+
+    useEffect(() => {
         return () => {
             if (cleanupRef.current) {
                 cleanupRef.current();
