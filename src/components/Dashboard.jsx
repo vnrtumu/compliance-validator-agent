@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { uploadFiles } from '../services/uploadService';
 import { getLLMSettings } from '../services/settingsService';
 import { getDashboardStats } from '../services/reportsService';
@@ -10,6 +11,7 @@ import ExtractionModal from './ExtractionModal';
 import './Dashboard.css';
 
 const Dashboard = () => {
+    const navigate = useNavigate();
     const fileInputRef = useRef(null);
     const [selectedFiles, setSelectedFiles] = useState([]);
     const [isUploading, setIsUploading] = useState(false);
@@ -82,6 +84,15 @@ const Dashboard = () => {
         return names[provider] || provider.toUpperCase();
     };
 
+    // Navigation handlers for stat cards
+    const navigateToInvoices = (filter = null) => {
+        if (filter) {
+            navigate(`/invoices?status=${filter}`);
+        } else {
+            navigate('/invoices');
+        }
+    };
+
     const handleAction = (action) => {
         alert(`${action} triggered! The agent is now preparing the requested data.`);
     };
@@ -127,6 +138,17 @@ const Dashboard = () => {
                 const duplicateNames = duplicates.map(d => `• ${d.filename} (already exists as ID: ${d.id})`).join('\n');
                 alert(`⚠️ Duplicate File(s) Detected:\n\n${duplicateNames}\n\nThese files were not uploaded again. Check the Invoices page to view existing records.`);
                 setShowStreamPanel(false);
+                return;
+            }
+
+            // Check if it's a JSON bulk import (auto-processing)
+            const jsonImports = results.filter(r => r.status === 'json_imported_processing');
+            if (jsonImports.length > 0) {
+                const count = jsonImports[0].imported_count || 1;
+                alert(`✅ ${count} invoices imported!\n\nBackground processing started. Check the Invoices page to monitor progress.`);
+                fetchDashboardStats();
+                // Navigate to invoices to see processing
+                navigate('/invoices');
                 return;
             }
 
@@ -217,22 +239,22 @@ const Dashboard = () => {
             </header>
 
             <div className="stats-grid">
-                <div className="glass-card stat-card" onClick={() => handleAction('Invoices Detail')} style={{ cursor: 'pointer' }}>
+                <div className="glass-card stat-card" onClick={() => navigateToInvoices()} style={{ cursor: 'pointer' }}>
                     <span className="stat-label">Invoices Processed</span>
                     <span className="stat-value">{dashboardStats.total_invoices.toLocaleString()}</span>
                     <span className="stat-trend positive">Total uploaded</span>
                 </div>
-                <div className="glass-card stat-card" onClick={() => handleAction('Compliance Detail')} style={{ cursor: 'pointer' }}>
+                <div className="glass-card stat-card" onClick={() => navigateToInvoices('approved')} style={{ cursor: 'pointer' }}>
                     <span className="stat-label">Approved Invoices</span>
                     <span className="stat-value">{dashboardStats.approved}</span>
                     <span className="stat-trend positive">{dashboardStats.compliance_rate}% compliance</span>
                 </div>
-                <div className="glass-card stat-card" onClick={() => handleAction('Flagged Invoices')} style={{ cursor: 'pointer' }}>
+                <div className="glass-card stat-card" onClick={() => navigateToInvoices('rejected')} style={{ cursor: 'pointer' }}>
                     <span className="stat-label">Rejected Invoices</span>
                     <span className="stat-value">{dashboardStats.rejected}</span>
                     <span className="stat-trend negative">{dashboardStats.active_flags} with flags</span>
                 </div>
-                <div className="glass-card stat-card" onClick={() => handleAction('Review Queue')} style={{ cursor: 'pointer' }}>
+                <div className="glass-card stat-card" onClick={() => navigateToInvoices('review')} style={{ cursor: 'pointer' }}>
                     <span className="stat-label">Human Review Needed</span>
                     <span className="stat-value">{dashboardStats.pending_review}</span>
                     <span className="stat-trend">Requires attention</span>

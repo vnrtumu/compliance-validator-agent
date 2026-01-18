@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { getInvoices } from '../services/uploadService';
 import { getLLMSettings } from '../services/settingsService';
 import { streamValidation } from '../services/validationService';
@@ -8,10 +9,16 @@ import ExtractionModal from './ExtractionModal';
 import './Invoices.css';
 
 const Invoices = () => {
+    const [searchParams, setSearchParams] = useSearchParams();
     const [invoices, setInvoices] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     const [selectedInvoice, setSelectedInvoice] = useState(null);
+
+    // Filter states - initialize from URL params
+    const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || 'all');
+    const [processingFilter, setProcessingFilter] = useState('all');
+    const [searchQuery, setSearchQuery] = useState('');
 
     // Combined Agent state (Validator + Resolver + Reporter)
     const [processingId, setProcessingId] = useState(null);
@@ -25,6 +32,21 @@ const Invoices = () => {
 
     // LLM Provider state
     const [llmProvider, setLlmProvider] = useState('groq');
+
+    // Auto-refresh for processing status
+    useEffect(() => {
+        const interval = setInterval(() => {
+            // Refresh if any invoice is still processing
+            const hasProcessing = invoices.some(inv =>
+                inv.batch_processing_status === 'processing' ||
+                inv.batch_processing_status === 'pending'
+            );
+            if (hasProcessing) {
+                fetchInvoices();
+            }
+        }, 5000); // Refresh every 5 seconds
+        return () => clearInterval(interval);
+    }, [invoices]);
 
     useEffect(() => {
         fetchInvoices();
@@ -59,6 +81,36 @@ const Invoices = () => {
             console.error('Failed to fetch LLM settings:', error);
         }
     };
+
+    // Filtered invoices based on filters
+    const filteredInvoices = useMemo(() => {
+        return invoices.filter(inv => {
+            // Status filter (based on invoice_status)
+            if (statusFilter !== 'all') {
+                if (statusFilter === 'approved' && inv.invoice_status !== 'APPROVED') return false;
+                if (statusFilter === 'rejected' && inv.invoice_status !== 'REJECTED') return false;
+                if (statusFilter === 'review' && inv.invoice_status !== 'HUMAN_REVIEW_NEEDED') return false;
+                if (statusFilter === 'pending' && inv.invoice_status) return false;
+            }
+
+            // Processing filter
+            if (processingFilter !== 'all') {
+                if (processingFilter === 'completed' && inv.batch_processing_status !== 'completed') return false;
+                if (processingFilter === 'processing' && inv.batch_processing_status !== 'processing') return false;
+                if (processingFilter === 'pending' && inv.batch_processing_status !== 'pending') return false;
+                if (processingFilter === 'failed' && inv.batch_processing_status !== 'failed') return false;
+            }
+
+            // Search filter
+            if (searchQuery) {
+                const query = searchQuery.toLowerCase();
+                return inv.filename?.toLowerCase().includes(query) ||
+                    inv.id?.toString().includes(query);
+            }
+
+            return true;
+        });
+    }, [invoices, statusFilter, processingFilter, searchQuery]);
 
     const getProviderDisplayName = (provider) => {
         const names = {
@@ -205,16 +257,29 @@ const Invoices = () => {
     };
 
     const getStatusTag = (invoice) => {
-        if (invoice.validation_status && invoice.validation_status !== 'pending') {
-            if (invoice.validation_status === 'APPROVED') {
-                return <span className="status-tag validated">✓ Approved</span>;
-            } else if (invoice.validation_status === 'REJECTED') {
+        // Primary: Use invoice_status from the database
+        if (invoice.invoice_status) {
+            if (invoice.invoice_status === 'APPROVED') {
+                return <span className="status-tag approved">✓ Approved</span>;
+            } else if (invoice.invoice_status === 'REJECTED') {
                 return <span className="status-tag rejected">✗ Rejected</span>;
-            } else {
+            } else if (invoice.invoice_status === 'HUMAN_REVIEW_NEEDED') {
                 return <span className="status-tag review">⚠ Review</span>;
             }
         }
 
+        // Show processing status if batch processing is in progress
+        if (invoice.batch_processing_status === 'processing') {
+            return <span className="status-tag processing">⏳ Processing</span>;
+        }
+        if (invoice.batch_processing_status === 'pending') {
+            return <span className="status-tag pending">🕐 Pending</span>;
+        }
+        if (invoice.batch_processing_status === 'failed') {
+            return <span className="status-tag rejected">❌ Failed</span>;
+        }
+
+        // Fallback to extraction status
         if (invoice.extraction_status === 'completed') {
             if (invoice.is_valid) {
                 return <span className="status-tag validated">✓ Valid</span>;
@@ -288,6 +353,78 @@ const Invoices = () => {
             </header>
 
             <div className="glass-card table-container">
+                {/* Filter Section */}
+                <div className="filter-section" style={{
+                    display: 'flex',
+                    gap: '1rem',
+                    padding: '1rem',
+                    borderBottom: '1px solid rgba(255,255,255,0.1)',
+                    flexWrap: 'wrap',
+                    alignItems: 'center'
+                }}>
+                    {/* Search */}
+                    <input
+                        type="text"
+                        placeholder="🔍 Search by filename or ID..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        style={{
+                            padding: '0.5rem 1rem',
+                            borderRadius: '0.5rem',
+                            border: '1px solid rgba(255,255,255,0.2)',
+                            background: 'rgba(255,255,255,0.05)',
+                            color: 'white',
+                            minWidth: '200px'
+                        }}
+                    />
+
+                    {/* Status Filter */}
+                    <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        style={{
+                            padding: '0.5rem 1rem',
+                            borderRadius: '0.5rem',
+                            border: '1px solid rgba(255,255,255,0.2)',
+                            background: 'rgba(255,255,255,0.05)',
+                            color: 'white'
+                        }}
+                    >
+                        <option value="all">All Status</option>
+                        <option value="approved">✓ Approved</option>
+                        <option value="rejected">✗ Rejected</option>
+                        <option value="review">⚠ Need Review</option>
+                        <option value="pending">🕐 Pending</option>
+                    </select>
+
+                    {/* Processing Filter */}
+                    <select
+                        value={processingFilter}
+                        onChange={(e) => setProcessingFilter(e.target.value)}
+                        style={{
+                            padding: '0.5rem 1rem',
+                            borderRadius: '0.5rem',
+                            border: '1px solid rgba(255,255,255,0.2)',
+                            background: 'rgba(255,255,255,0.05)',
+                            color: 'white'
+                        }}
+                    >
+                        <option value="all">All Processing</option>
+                        <option value="completed">✅ Completed</option>
+                        <option value="processing">⏳ Processing</option>
+                        <option value="pending">🕐 Pending</option>
+                        <option value="failed">❌ Failed</option>
+                    </select>
+
+                    {/* Stats */}
+                    <div style={{ marginLeft: 'auto', display: 'flex', gap: '1rem', fontSize: '0.85rem' }}>
+                        <span style={{ color: '#4ade80' }}>✓ {invoices.filter(i => i.invoice_status === 'APPROVED').length} Approved</span>
+                        <span style={{ color: '#f87171' }}>✗ {invoices.filter(i => i.invoice_status === 'REJECTED').length} Rejected</span>
+                        <span style={{ color: '#fbbf24' }}>⚠ {invoices.filter(i => i.invoice_status === 'HUMAN_REVIEW_NEEDED').length} Review</span>
+                        <span style={{ color: '#60a5fa' }}>📋 {filteredInvoices.length}/{invoices.length}</span>
+                    </div>
+                </div>
+
                 {isLoading ? (
                     <div style={{ padding: '2rem', textAlign: 'center' }}>Loading invoices...</div>
                 ) : error ? (
@@ -301,27 +438,39 @@ const Invoices = () => {
                                 <th>ID</th>
                                 <th>Filename</th>
                                 <th>Upload Date</th>
-                                <th>Type</th>
-                                <th>Size</th>
+                                <th>Score</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {invoices.length === 0 ? (
+                            {filteredInvoices.length === 0 ? (
                                 <tr>
-                                    <td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>
-                                        No invoices found. Upload some on the dashboard!
+                                    <td colSpan="6" style={{ textAlign: 'center', padding: '2rem' }}>
+                                        {invoices.length === 0
+                                            ? 'No invoices found. Upload some on the dashboard!'
+                                            : 'No invoices match your filters.'}
                                     </td>
                                 </tr>
                             ) : (
-                                invoices.map((inv) => (
+                                filteredInvoices.map((inv) => (
                                     <tr key={inv.id}>
                                         <td className="inv-id">#{inv.id}</td>
-                                        <td>{inv.filename}</td>
+                                        <td style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                            {inv.filename}
+                                        </td>
                                         <td>{new Date(inv.created_at).toLocaleDateString()}</td>
-                                        <td className="gstin-code">{inv.content_type}</td>
-                                        <td>{Math.round(inv.size / 1024)} KB</td>
+                                        <td>
+                                            {inv.compliance_score ? (
+                                                <span style={{
+                                                    color: inv.compliance_score >= 80 ? '#4ade80' :
+                                                        inv.compliance_score >= 60 ? '#fbbf24' : '#f87171',
+                                                    fontWeight: 600
+                                                }}>
+                                                    {inv.compliance_score}%
+                                                </span>
+                                            ) : '-'}
+                                        </td>
                                         <td>{getStatusTag(inv)}</td>
                                         <td className="action-buttons">
                                             <button
@@ -341,10 +490,10 @@ const Invoices = () => {
                                                 <button
                                                     className="validate-btn"
                                                     onClick={() => handleRunAgents(inv)}
-                                                    disabled={processingId === inv.id || !inv.extraction_result}
+                                                    disabled={processingId === inv.id || !inv.extraction_result || inv.batch_processing_status === 'processing'}
                                                     title={!inv.extraction_result ? 'Run Extract first' : 'Run all agents'}
                                                 >
-                                                    {processingId === inv.id ? '⏳' : '🤖'} Run Agents
+                                                    {processingId === inv.id || inv.batch_processing_status === 'processing' ? '⏳' : '🤖'} Run Agents
                                                 </button>
                                             )}
                                         </td>
