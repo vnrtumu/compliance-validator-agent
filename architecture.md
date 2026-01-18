@@ -1045,28 +1045,6 @@ AgenticAITest/
 
 ---
 
-## 🎓 Learning Resources
-
-### GST Compliance
-
-- [GST Portal](https://www.gst.gov.in/)
-- [GSTIN Format Guide](https://cleartax.in/s/gstin-gst-number)
-- [E-invoice System](https://einvoice1.gst.gov.in/)
-
-### TDS Compliance
-
-- [Section 194C - Contractors](https://cleartax.in/s/tds-on-contractors)
-- [Section 194J - Professional Services](https://cleartax.in/s/tds-on-professional-services)
-- [Section 206AB - Non-filers](https://cleartax.in/s/section-206ab)
-
-### AI/LLM
-
-- [OpenAI Documentation](https://platform.openai.com/docs)
-- [GROQ API](https://console.groq.com/docs)
-- [LangChain](https://python.langchain.com/)
-
----
-
 ## 👨‍💻 Author
 
 **Tumu Venkata Narayana Reddy - 101445**
