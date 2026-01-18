@@ -1067,26 +1067,6 @@ AgenticAITest/
 
 ---
 
-## 🤝 Contributing
-
-This is an assessment project. For production use, consider:
-
-1. ✅ Add comprehensive unit tests (`pytest`)
-2. ✅ Implement CI/CD pipeline (GitHub Actions)
-3. ✅ Add authentication & authorization (JWT)
-4. ✅ Implement audit logging
-5. ✅ Add batch processing queue (Celery)
-6. ✅ Deploy to cloud (AWS/GCP/Azure)
-7. ✅ Add monitoring (Prometheus, Grafana)
-
----
-
-## 📄 License
-
-This project is created for the **Agentic AI Assessment Challenge v1**.
-
----
-
 ## 👨‍💻 Author
 
 **Tumu Venkata Narayana Reddy - 101445**
