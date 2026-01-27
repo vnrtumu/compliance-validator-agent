@@ -1,0 +1,25 @@
+# Compliance Validator Agent Frontend
+# ====================================
+# Note: This is a React/Vite frontend project.
+# Dependencies are managed via package.json using npm/yarn.
+# 
+# To install dependencies:
+#   npm install
+#
+# To run development server:
+#   npm run dev
+#
+# This requirements.txt is provided for documentation purposes only.
+# The actual dependencies are listed in package.json:
+#
+# Production Dependencies:
+# - react: ^19.2.0
+# - react-dom: ^19.2.0
+# - react-router-dom: ^7.12.0
+#
+# Dev Dependencies:
+# - vite: ^7.2.4
+# - @vitejs/plugin-react: ^5.1.1
+# - eslint: ^9.39.1
+# - eslint-plugin-react-hooks: ^7.0.1
+# - eslint-plugin-react-refresh: ^0.4.24
